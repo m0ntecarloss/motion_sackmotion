@@ -214,7 +214,7 @@ config_param config_params[] = {
     },
     {
     "thread_name",
-    "# thread_name action\n"
+    "# name given to thread.  may be used with the specifier %E for filenames and such.n",
     0,
     CONF_OFFSET(thread_name),
     copy_string,
