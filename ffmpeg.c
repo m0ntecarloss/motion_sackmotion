@@ -277,7 +277,7 @@ void ffmpeg_init()
 
     /* Register the append file protocol. */
 #if LIBAVFORMAT_BUILD >= (52<<16 | 31<<8)
-    av_register_protocol(&mpeg1_file_protocol);
+    av_register_protocol2(&mpeg1_file_protocol, sizeof(mpeg1_file_protocol));
 #else
     register_protocol(&mpeg1_file_protocol);
 #endif
@@ -472,7 +472,7 @@ struct ffmpeg *ffmpeg_open(char *ffmpeg_video_codec, char *filename,
 
     ffmpeg->c     = c = AVSTREAM_CODEC_PTR(ffmpeg->video_st);
     c->codec_id   = ffmpeg->oc->oformat->video_codec;
-    c->codec_type = CODEC_TYPE_VIDEO;
+    c->codec_type = AVMEDIA_TYPE_VIDEO;
     is_mpeg1      = c->codec_id == CODEC_ID_MPEG1VIDEO;
 
     if (strcmp(ffmpeg_video_codec, "ffv1") == 0)
@@ -789,7 +789,7 @@ int ffmpeg_put_frame(struct ffmpeg *ffmpeg, AVFrame *pic)
     if (ffmpeg->oc->oformat->flags & AVFMT_RAWPICTURE) {
         /* Raw video case. The API will change slightly in the near future for that. */
 #ifdef FFMPEG_AVWRITEFRAME_NEWAPI
-        pkt.flags |= PKT_FLAG_KEY;
+        pkt.flags |= AV_PKT_FLAG_KEY;
         pkt.data = (uint8_t *)pic;
         pkt.size = sizeof(AVPicture);
         ret = av_write_frame(ffmpeg->oc, &pkt);
@@ -813,7 +813,7 @@ int ffmpeg_put_frame(struct ffmpeg *ffmpeg, AVFrame *pic)
             pkt.pts = AVSTREAM_CODEC_PTR(ffmpeg->video_st)->coded_frame->pts;
 
             if (AVSTREAM_CODEC_PTR(ffmpeg->video_st)->coded_frame->key_frame)
-                pkt.flags |= PKT_FLAG_KEY;
+                pkt.flags |= AV_PKT_FLAG_KEY;
 
 
             pkt.data = ffmpeg->video_outbuf;
