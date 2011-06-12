@@ -43,6 +43,7 @@ char *get_current_dir_name(void)
 #define stripnewline(x) {if ((x)[strlen(x)-1]=='\n') (x)[strlen(x) - 1] = 0; }
 
 struct config conf_template = {
+    thread_name:                    NULL,
     width:                          DEF_WIDTH,
     height:                         DEF_HEIGHT,
     quality:                        DEF_QUALITY,
@@ -52,6 +53,7 @@ struct config conf_template = {
     output_pictures:                "on",
     motion_img:                     0,
     emulate_motion:                 0,
+    detect_motion:                  1,
     event_gap:                      DEF_EVENT_GAP,
     max_movie_time:                 DEF_MAXMOVIETIME,
     snapshot_interval:              0,
@@ -209,6 +211,14 @@ config_param config_params[] = {
     CONF_OFFSET(setup_mode),
     copy_bool,
     print_bool
+    },
+    {
+    "thread_name",
+    "# thread_name action\n"
+    0,
+    CONF_OFFSET(thread_name),
+    copy_string,
+    print_string
     },
     {
     "logfile",
@@ -626,6 +636,17 @@ config_param config_params[] = {
     "# Always save images even if there was no motion (default: off)",
     0,
     CONF_OFFSET(emulate_motion),
+    copy_bool,
+    print_bool
+    },
+    {
+    "detect_motion",
+    "\n############################################################\n"
+    "# To enable capture of images and videos when motion is\n"
+    "# detected, the detect_motion flag should be enabled (default: on)"
+    "############################################################\n\n",
+    0,
+    CONF_OFFSET(detect_motion),
     copy_bool,
     print_bool
     },

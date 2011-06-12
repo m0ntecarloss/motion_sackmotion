@@ -19,6 +19,7 @@
  * More parameters may be added later.
  */
 struct config {
+    const char *thread_name;
     unsigned int log_level;
     char *log_type_str;
     char *log_file;
@@ -32,6 +33,7 @@ struct config {
     const char *output_pictures;
     int motion_img;
     int emulate_motion;
+    int detect_motion;
     int event_gap;
     int max_movie_time;
     int snapshot_interval;

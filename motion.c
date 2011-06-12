@@ -691,6 +691,9 @@ static int motion_init(struct context *cnt)
     MOTION_LOG(NTC, TYPE_ALL, NO_ERRNO, "%s: Thread %d started", 
                (unsigned long)pthread_getspecific(tls_key_threadnr));
 
+    if (!cnt->conf.detect_motion)
+        cnt->pause = 1;
+
     if (!cnt->conf.filepath)
         cnt->conf.filepath = mystrdup(".");
 
@@ -3152,6 +3155,17 @@ size_t mystrftime(const struct context *cnt, char *s, size_t max, const char *us
 
             case 'D': // diffs
                 sprintf(tempstr, "%d", cnt->current_image->diffs);
+                break;
+
+            case 'E': // thread name
+                if (cnt->conf.thread_name && cnt->conf.thread_name[0])
+                    snprintf(tempstr, PATH_MAX, "%s", cnt->conf.thread_name);
+                else
+                    ++pos_userformat;
+                break;
+
+            case 'Z': // percentage of image that contained motion
+                sprintf(tempstr, "%d", 100 * (cnt->current_image->location.width * cnt->current_image->location.height) / (cnt->imgs.width * cnt->imgs.height));
                 break;
 
             case 'N': // noise
