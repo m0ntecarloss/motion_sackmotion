@@ -34,6 +34,7 @@ struct config {
     int motion_img;
     int emulate_motion;
     int detect_motion;
+    char *get_initial_event_cmd;
     int event_gap;
     int max_movie_time;
     int snapshot_interval;
@@ -105,7 +106,11 @@ struct config {
     int sql_log_snapshot;
     int sql_log_movie;
     int sql_log_timelapse;
+    int sql_log_events;
     const char *sql_query;
+    const char *sql_event_start_query;
+    const char *sql_event_stop_query;
+    const char *sql_motion_detected_query;
     const char *database_type;
     const char *database_dbname;
     const char *database_host;

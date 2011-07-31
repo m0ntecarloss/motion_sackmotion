@@ -54,6 +54,7 @@ struct config conf_template = {
     motion_img:                     0,
     emulate_motion:                 0,
     detect_motion:                  1,
+    get_initial_event_cmd:          NULL,
     event_gap:                      DEF_EVENT_GAP,
     max_movie_time:                 DEF_MAXMOVIETIME,
     snapshot_interval:              0,
@@ -125,7 +126,11 @@ struct config conf_template = {
     sql_log_snapshot:               1,
     sql_log_movie:                  0,
     sql_log_timelapse:              0,
+    sql_log_events:                 0,
     sql_query:                      DEF_SQL_QUERY,
+    sql_event_start_query:          NULL,
+    sql_event_stop_query:           NULL,
+    sql_motion_detected_query:      NULL,
     database_type:                  NULL,
     database_dbname:                NULL,
     database_host:                  "localhost",
@@ -643,12 +648,20 @@ config_param config_params[] = {
     "detect_motion",
     "\n############################################################\n"
     "# To enable capture of images and videos when motion is\n"
-    "# detected, the detect_motion flag should be enabled (default: on)"
-    "############################################################\n\n",
+    "# detected, the detect_motion flag should be enabled (default: on)\n"
+    "############################################################\n",
     0,
     CONF_OFFSET(detect_motion),
     copy_bool,
     print_bool
+    },
+    {
+        "get_initial_event_cmd",
+        "# Command to run on startup to get the initial event number.",
+        0,
+        CONF_OFFSET(get_initial_event_cmd),
+        copy_string,
+        print_string
     },
     {
     "output_pictures",
@@ -1446,6 +1459,30 @@ config_param config_params[] = {
     print_string
     },
     {
+        "sql_event_start_query",
+        "# SQL query string sent to database when an event starts",
+        0,
+        CONF_OFFSET(sql_event_start_query),
+        copy_string,
+        print_string
+    },
+    {
+        "sql_event_stop_query",
+        "# SQL query string sent to database when an event ends",
+        0,
+        CONF_OFFSET(sql_event_stop_query),
+        copy_string,
+        print_string
+    },
+    {
+        "sql_motion_detected_query",
+        "# SQL query string sent to database when motion is detected",
+        0,
+        CONF_OFFSET(sql_motion_detected_query),
+        copy_string,
+        print_string
+    },
+    {
     "database_type",
     "\n############################################################\n"
     "# Database Options \n"
@@ -1908,10 +1945,13 @@ struct context **conf_load(struct context **cnt)
         if (!fp) {
             snprintf(filename, PATH_MAX, "%s/motion.conf", sysconfdir);
             fp = fopen(filename, "r");
-
-            if (!fp) /* There is no config file.... use defaults. */
-                MOTION_LOG(ALR, TYPE_ALL, SHOW_ERRNO, "%s: could not open configfile %s",
-                           filename);
+            if (!fp) {
+                snprintf(filename, PATH_MAX, "%s/motion.conf", confdir);
+                fp = fopen(filename, "r");
+                if (!fp) /* There is no config file.... use defaults. */
+                    MOTION_LOG(ALR, TYPE_ALL, SHOW_ERRNO, "%s: could not open configfile %s",
+                               filename);
+            }
         }
     }
 

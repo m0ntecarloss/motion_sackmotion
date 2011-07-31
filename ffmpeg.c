@@ -103,10 +103,10 @@ static int file_open_append(URLContext *h, const char *filename, int flags)
 
     if (flags & URL_RDWR) {
         mode = "ab+";
-        bufsize = BUFSIZE_1MEG;
+        bufsize = BUFSIZE_10MEG;
     } else if (flags & URL_WRONLY) {
         mode = "ab";
-        bufsize = BUFSIZE_1MEG;
+        bufsize = BUFSIZE_10MEG;
     } else {
         mode = "rb";
     }
@@ -158,10 +158,10 @@ static int file_open(URLContext *h, const char *filename, int flags)
 
     if (flags & URL_RDWR) {
         mode = "wb+";
-        bufsize = BUFSIZE_1MEG;
+        bufsize = BUFSIZE_10MEG;
     } else if (flags & URL_WRONLY) {
         mode = "wb";
-        bufsize = BUFSIZE_1MEG;
+        bufsize = BUFSIZE_10MEG;
     } else {
         mode = "rb";
     }

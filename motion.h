@@ -211,6 +211,8 @@
 #define RESET_REF_FRAME   2
 
 #define BUFSIZE_1MEG      (1024 * 1024)
+#define BUFSIZE_5MEG      (5  * BUFSIZE_1MEG)
+#define BUFSIZE_10MEG     (10 * BUFSIZE_1MEG)
 
 /* Forward declaration, used in track.h */
 struct images;

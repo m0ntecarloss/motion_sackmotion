@@ -64,8 +64,7 @@ static void event_newfile(struct context *cnt ATTRIBUTE_UNUSED,
             int type ATTRIBUTE_UNUSED, unsigned char *dummy ATTRIBUTE_UNUSED,
             char *filename, void *ftype, struct tm *tm ATTRIBUTE_UNUSED)
 {
-    MOTION_LOG(NTC, TYPE_EVENTS, NO_ERRNO, "%s: File of type %ld saved to: %s",
-               (unsigned long)ftype, filename);
+    MOTION_LOG(NTC, TYPE_EVENTS, NO_ERRNO, "%s: File of type %ld saved to: %s", (unsigned long)ftype, filename);
 }
 
 
@@ -213,7 +212,155 @@ static void event_sqlnewfile(struct context *cnt, int type  ATTRIBUTE_UNUSED,
     }
 }
 
+
+static void event_sql_firstmotion(struct context *cnt, int type  ATTRIBUTE_UNUSED, unsigned char *dummy ATTRIBUTE_UNUSED, char *filename, void *arg, struct tm *tm ATTRIBUTE_UNUSED)
+{
+    int  sqltype = (unsigned long)arg;
+    char sqlquery[PATH_MAX];
+
+    mystrftime(cnt, sqlquery, sizeof(sqlquery), cnt->conf.sql_event_start_query, &cnt->current_image->timestamp_tm, filename, sqltype);
+
+    if (!strcmp(cnt->conf.database_type, "mysql"))
+    {
+        if (mysql_query(cnt->database, sqlquery) != 0)
+        {
+            int error_code = mysql_errno(cnt->database);
+
+            MOTION_LOG(ERR, TYPE_DB, SHOW_ERRNO, "%s: Mysql query failed %s error code %d", mysql_error(cnt->database), error_code);
+
+            /* Try to reconnect ONCE if fails continue and discard this sql query */
+            if (error_code >= 2000)
+            {
+                // Close connection before start a new connection
+                mysql_close(cnt->database);
+
+                cnt->database = (MYSQL *) mymalloc(sizeof(MYSQL));
+                mysql_init(cnt->database);
+
+                if (!mysql_real_connect(cnt->database, cnt->conf.database_host, cnt->conf.database_user, cnt->conf.database_password, cnt->conf.database_dbname, 0, NULL, 0))
+                {
+                    MOTION_LOG(ALR, TYPE_DB, NO_ERRNO, "%s: Cannot reconnect to MySQL"
+                                                       " database %s on host %s with user %s MySQL error was %s",
+                                                       cnt->conf.database_dbname,
+                                                       cnt->conf.database_host,
+                                                       cnt->conf.database_user,
+                                                       mysql_error(cnt->database));
+                }
+                else
+                {
+                    MOTION_LOG(INF, TYPE_DB, NO_ERRNO, "%s: Re-Connection to Mysql database '%s' Succeed", cnt->conf.database_dbname);
+                    if (mysql_query(cnt->database, sqlquery) != 0)
+                    {
+                        int error_code = mysql_errno(cnt->database);
+                        MOTION_LOG(ERR, TYPE_DB, SHOW_ERRNO, "%s: after re-connection Mysql query failed %s error code %d", mysql_error(cnt->database), error_code);
+                    }
+                }
+            }
+        }
+    }
+
+} // END event_sql_firstmotion
+
+
+static void event_sql_endmotion(struct context *cnt, int type  ATTRIBUTE_UNUSED, unsigned char *dummy ATTRIBUTE_UNUSED, char *filename, void *arg, struct tm *tm ATTRIBUTE_UNUSED)
+{
+    int  sqltype = (unsigned long)arg;
+    char sqlquery[PATH_MAX];
+
+    mystrftime(cnt, sqlquery, sizeof(sqlquery), cnt->conf.sql_event_stop_query, &cnt->current_image->timestamp_tm, filename, sqltype);
+
+    if (!strcmp(cnt->conf.database_type, "mysql"))
+    {
+        if (mysql_query(cnt->database, sqlquery) != 0)
+        {
+            int error_code = mysql_errno(cnt->database);
+
+            MOTION_LOG(ERR, TYPE_DB, SHOW_ERRNO, "%s: Mysql query failed %s error code %d", mysql_error(cnt->database), error_code);
+
+            /* Try to reconnect ONCE if fails continue and discard this sql query */
+            if (error_code >= 2000)
+            {
+                // Close connection before start a new connection
+                mysql_close(cnt->database);
+
+                cnt->database = (MYSQL *) mymalloc(sizeof(MYSQL));
+                mysql_init(cnt->database);
+
+                if (!mysql_real_connect(cnt->database, cnt->conf.database_host, cnt->conf.database_user, cnt->conf.database_password, cnt->conf.database_dbname, 0, NULL, 0))
+                {
+                    MOTION_LOG(ALR, TYPE_DB, NO_ERRNO, "%s: Cannot reconnect to MySQL"
+                                                       " database %s on host %s with user %s MySQL error was %s",
+                                                       cnt->conf.database_dbname,
+                                                       cnt->conf.database_host,
+                                                       cnt->conf.database_user,
+                                                       mysql_error(cnt->database));
+                }
+                else
+                {
+                    MOTION_LOG(INF, TYPE_DB, NO_ERRNO, "%s: Re-Connection to Mysql database '%s' Succeed", cnt->conf.database_dbname);
+                    if (mysql_query(cnt->database, sqlquery) != 0)
+                    {
+                        int error_code = mysql_errno(cnt->database);
+                        MOTION_LOG(ERR, TYPE_DB, SHOW_ERRNO, "%s: after re-connection Mysql query failed %s error code %d", mysql_error(cnt->database), error_code);
+                    }
+                }
+            }
+        }
+    }
+
+} // END event_sql_endmotion
+
+
+static void event_sql_detected_motion(struct context *cnt, int type  ATTRIBUTE_UNUSED, unsigned char *dummy ATTRIBUTE_UNUSED, char *filename, void *arg, struct tm *tm ATTRIBUTE_UNUSED)
+{
+    int  sqltype = (unsigned long)arg;
+    char sqlquery[PATH_MAX];
+
+    mystrftime(cnt, sqlquery, sizeof(sqlquery), cnt->conf.sql_motion_detected_query, &cnt->current_image->timestamp_tm, filename, sqltype);
+
+    if (!strcmp(cnt->conf.database_type, "mysql"))
+    {
+        if (mysql_query(cnt->database, sqlquery) != 0)
+        {
+            int error_code = mysql_errno(cnt->database);
+
+            MOTION_LOG(ERR, TYPE_DB, SHOW_ERRNO, "%s: Mysql query failed %s error code %d", mysql_error(cnt->database), error_code);
+
+            /* Try to reconnect ONCE if fails continue and discard this sql query */
+            if (error_code >= 2000)
+            {
+                // Close connection before start a new connection
+                mysql_close(cnt->database);
+
+                cnt->database = (MYSQL *) mymalloc(sizeof(MYSQL));
+                mysql_init(cnt->database);
+
+                if (!mysql_real_connect(cnt->database, cnt->conf.database_host, cnt->conf.database_user, cnt->conf.database_password, cnt->conf.database_dbname, 0, NULL, 0))
+                {
+                    MOTION_LOG(ALR, TYPE_DB, NO_ERRNO, "%s: Cannot reconnect to MySQL"
+                                                       " database %s on host %s with user %s MySQL error was %s",
+                                                       cnt->conf.database_dbname,
+                                                       cnt->conf.database_host,
+                                                       cnt->conf.database_user,
+                                                       mysql_error(cnt->database));
+                }
+                else
+                {
+                    MOTION_LOG(INF, TYPE_DB, NO_ERRNO, "%s: Re-Connection to Mysql database '%s' Succeed", cnt->conf.database_dbname);
+                    if (mysql_query(cnt->database, sqlquery) != 0)
+                    {
+                        int error_code = mysql_errno(cnt->database);
+                        MOTION_LOG(ERR, TYPE_DB, SHOW_ERRNO, "%s: after re-connection Mysql query failed %s error code %d", mysql_error(cnt->database), error_code);
+                    }
+                }
+            }
+        }
+    }
+
+} // END event_sql_detected_motion
+
 #endif /* defined HAVE_MYSQL || defined HAVE_PGSQL || defined(HAVE_SQLITE3) */
+
 
 static void on_area_command(struct context *cnt, int type ATTRIBUTE_UNUSED,
             unsigned char *dummy1 ATTRIBUTE_UNUSED,
@@ -785,6 +932,18 @@ struct event_handlers event_handlers[] = {
     {
     EVENT_FILECREATE,
     event_sqlnewfile
+    },
+    {
+        EVENT_FIRSTMOTION,
+        event_sql_firstmotion
+    },
+    {
+        EVENT_ENDMOTION,
+        event_sql_endmotion
+    },
+    {
+        EVENT_MOTION,
+        event_sql_detected_motion
     },
 #endif
     {

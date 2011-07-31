@@ -61,6 +61,10 @@ volatile int threads_running = 0;
 /* Set this when we want main to end or restart */
 volatile unsigned int finish = 0;
 
+
+volatile unsigned int event_number_start = 0;
+
+
 /* Log file used instead of stderr and syslog */ 
 FILE *ptr_logfile = NULL;
 
@@ -449,6 +453,14 @@ static void motion_detected(struct context *cnt, int dev, struct image_data *img
              * Reset prev_event number to current event and save event time
              * in both time_t and struct tm format.
              */
+
+            /* CRR mods below */
+            pthread_mutex_lock(&global_lock);
+            event_number_start++;
+            cnt->event_nr = event_number_start;
+            printf("Event [%i] start for thread %i\n", cnt->event_nr, cnt->threadnr);
+            pthread_mutex_unlock(&global_lock);
+
             cnt->prev_event = cnt->event_nr;
             cnt->eventtime = img->timestamp;
             localtime_r(&cnt->eventtime, cnt->eventtime_tm);
@@ -475,6 +487,7 @@ static void motion_detected(struct context *cnt, int dev, struct image_data *img
 
         /* EVENT_MOTION triggers event_beep and on_motion_detected_command */
         event(cnt, EVENT_MOTION, NULL, NULL, NULL, &img->timestamp_tm);
+
     }
 
     /* Limit framerate */
@@ -648,6 +661,58 @@ static void process_image_ring(struct context *cnt, unsigned int max_images)
     cnt->current_image = saved_current_image;
 }
 
+
+int get_int_from_command(const char *cmd)
+{
+    FILE *fp = NULL;
+    char  buf[255];
+    int   return_value = -1;
+    int   first_pass   = 1;
+
+    fp = popen(cmd, "r");
+    if (fp != NULL)
+    {
+        while (fgets(buf, sizeof(buf)-1, fp) != NULL)
+        {
+            if (first_pass)
+            {
+                first_pass = 0;
+                return_value = atoi(buf);
+            }
+        }
+        pclose(fp);
+    }
+    return return_value;
+}
+
+
+static int get_initial_event_number(char *cmd, int threadnr)
+{
+    /*
+    const char filename[] = "/tmp/motion_event.txt";
+    FILE *fp = fopen(filename, "r");
+    if (fp)
+    {
+        fscanf(fp, "%d", &event_number);
+        fclose(fp);
+    }
+    event_number++;
+    fp = fopen(filename, "w");
+    fprintf(fp, "%d", event_number);
+    fclose(fp);
+    */
+    char mycmd[1024];
+    int event_number = -1;
+
+    sprintf(mycmd, "%s %i", cmd, threadnr);
+
+    printf("Fetching initial event number using command:\n    %s\n", mycmd);
+    event_number = get_int_from_command(mycmd);
+    printf("    --> I got was: %i\n", event_number);
+    return event_number;
+}
+
+
 /**
  * motion_init
  *
@@ -682,8 +747,15 @@ static int motion_init(struct context *cnt)
      * We initialize cnt->event_nr to 1 and cnt->prev_event to 0 (not really needed) so
      * that certain code below does not run until motion has been detected the first time 
      */
-    cnt->event_nr = 1;
-    cnt->prev_event = 0;
+    //cnt->event_nr = 1;
+    //cnt->prev_event = 0;
+    /* cnt->event_nr   = get_initial_event_number(cnt_list[0]->conf.get_initial_event_cmd, cnt->threadnr); */
+    /* cnt->event_nr   = event_number_start; // CRR */
+    pthread_mutex_lock(&global_lock);
+    cnt->event_nr = event_number_start;
+    pthread_mutex_unlock(&global_lock);
+    cnt->prev_event = cnt->event_nr - 1;
+
     cnt->lightswitch_framecounter = 0;
     cnt->detecting_motion = 0;
     cnt->makemovie = 0;
@@ -1914,15 +1986,19 @@ static void *motion_loop(void *arg)
                     if (cnt->track.type)
                         cnt->moved = track_center(cnt, cnt->video_dev, 0, 0, 0);
 
-                    MOTION_LOG(DBG, TYPE_ALL, NO_ERRNO, "%s: End of event %d", 
-                               cnt->event_nr);
+                    MOTION_LOG(DBG, TYPE_ALL, NO_ERRNO, "%s: End of event %d", cnt->event_nr);
 
                     cnt->makemovie = 0;
                     /* Reset post capture */
                     cnt->postcap = 0;
 
                     /* Finally we increase the event number */
-                    cnt->event_nr++;
+                    /* cnt->event_nr++; */
+                    /* CRR mods below  instead of commented out line above */
+                    pthread_mutex_lock(&global_lock);
+                    cnt->prev_event = cnt->event_nr - 1;
+                    pthread_mutex_unlock(&global_lock);
+
                     cnt->lightswitch_framecounter = 0;
 
                     /* 
@@ -2452,6 +2528,11 @@ static void motion_startup(int daemonize, int argc, char *argv[])
      * configuration.
      */
     cntlist_create(argc, argv);
+
+    pthread_mutex_lock(&global_lock);
+    event_number_start = get_initial_event_number(cnt_list[0]->conf.get_initial_event_cmd, 0);
+    pthread_mutex_unlock(&global_lock);
+    printf("Motion startup - initial event number is %i\n", event_number_start);
 
     if ((cnt_list[0]->conf.log_level > ALL) ||
         (cnt_list[0]->conf.log_level == 0)) { 
