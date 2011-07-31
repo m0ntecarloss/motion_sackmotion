@@ -19,18 +19,20 @@ INSTALL = install
 prefix      = @prefix@
 exec_prefix = @exec_prefix@
 bindir      = @bindir@
+cgidir      = /usr/lib/cgi-bin
 mandir      = @mandir@
 sysconfdir  = @sysconfdir@
 datadir     = @datadir@
 datarootdir = @datarootdir@
-docdir      = $(datadir)/doc/@PACKAGE_NAME@-@PACKAGE_VERSION@ 
+docdir      = $(datadir)/doc/@PACKAGE_NAME@-@PACKAGE_VERSION@
 examplesdir = $(datadir)/@PACKAGE_NAME@-@PACKAGE_VERSION@/examples
+confdir     = $(datadir)/@PACKAGE_NAME@-@PACKAGE_VERSION@/conf
 
 ################################################################################
 # These variables contain compiler flags, object files to build and files to   #
 # install.                                                                     #
 ################################################################################
-CFLAGS       = @CFLAGS@ -Wall -DVERSION=\"@PACKAGE_VERSION@\" -Dsysconfdir=\"$(sysconfdir)\" 
+CFLAGS       = @CFLAGS@ -Wall -DVERSION=\"@PACKAGE_VERSION@\" -Dsysconfdir=\"$(sysconfdir)\" -Dconfdir=\"$(confdir)\"
 LDFLAGS      = @LDFLAGS@
 LIBS         = @LIBS@ 
 VIDEO_OBJ    = @VIDEO@
@@ -42,6 +44,7 @@ SRC          = $(OBJ:.o=.c)
 DOC          = CHANGELOG COPYING CREDITS INSTALL README motion_guide.html
 EXAMPLES     = *.conf motion.init-Debian motion.init-Fedora motion.init-FreeBSD.sh
 PROGS        = motion
+CGI_PROGS    = nph-mjprox nph-mjgrab
 DEPEND_FILE  = .depend
 
 ################################################################################
@@ -55,7 +58,7 @@ else
 endif
 	@echo
 
-progs: pre-build-info $(PROGS)
+progs: pre-build-info $(PROGS) $(CGI_PROGS)
 
 ################################################################################
 # PRE-BUILD-INFO outputs some general info before the build process starts.    #
@@ -93,6 +96,17 @@ motion-objects: dep pre-mobject-info $(OBJ)
 pre-mobject-info:
 	@echo "Compiling Motion object files..."
 	@echo "--------------------------------------------------------------------------------"
+
+nph-mjprox : nph-mjprox.c
+	@echo "Compiling nph-mjprox..."
+	@echo "--------------------------------------------------------------------------------"
+	$(CC) $(CFLAGS) nph-mjprox.c -o nph-mjprox $(LDFLAGS)
+
+nph-mjgrab : nph-mjgrab.c
+	@echo "Compiling nph-mjgrab..."
+	@echo "--------------------------------------------------------------------------------"
+	$(CC) $(CFLAGS) nph-mjgrab.c -o nph-mjgrab $(LDFLAGS)
+
 
 ################################################################################
 # Define the compile command for C files.                                      #
@@ -167,6 +181,7 @@ install:
 	@echo "Installing files..."
 	@echo "--------------------------------------------------------------------------------"
 	mkdir -p $(DESTDIR)$(bindir)
+	mkdir -p $(DESTDIR)$(cgidir)
 	mkdir -p $(DESTDIR)$(mandir)/man1
 	mkdir -p $(DESTDIR)$(sysconfdir)
 	mkdir -p $(DESTDIR)$(docdir)
@@ -178,6 +193,10 @@ install:
 	for prog in $(PROGS); \
 	do \
 	($(INSTALL) $$prog $(DESTDIR)$(bindir) ); \
+	done
+	for prog in $(CGI_PROGS); \
+	do \
+	($(INSTALL) $$prog $(DESTDIR)$(cgidir) ); \
 	done
 	@echo "--------------------------------------------------------------------------------"
 	@echo "Install complete! The default configuration file, motion-dist.conf, has been"
@@ -196,6 +215,10 @@ uninstall remove: pre-build-info
 	do \
 		($ rm -f $(bindir)/$$prog ); \
 	done
+	for prog in $(CGI_PROGS); \
+	do \
+		($ rm -f $(cgidir)/$$prog ); \
+	done
 	rm -f $(mandir)/man1/motion.1
 	rm -f $(sysconfdir)/motion-dist.conf
 	rm -rf $(docdir)
@@ -210,7 +233,7 @@ uninstall remove: pre-build-info
 ################################################################################
 clean: pre-build-info
 	@echo "Removing compiled files and binaries..."
-	@rm -f *~ *.jpg *.o $(PROGS) combine $(DEPEND_FILE)
+	@rm -f *~ *.jpg *.o $(PROGS) $(CGI_PROGS) combine $(DEPEND_FILE)
 
 ################################################################################
 # DIST restores the directory to distribution state.                           #
