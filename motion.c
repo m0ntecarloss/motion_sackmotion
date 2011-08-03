@@ -454,11 +454,11 @@ static void motion_detected(struct context *cnt, int dev, struct image_data *img
              * in both time_t and struct tm format.
              */
 
-            /* CRR mods below */
+            cnt->total_events++;
+
             pthread_mutex_lock(&global_lock);
             event_number_start++;
             cnt->event_nr = event_number_start;
-            printf("Event [%i] start for thread %i\n", cnt->event_nr, cnt->threadnr);
             pthread_mutex_unlock(&global_lock);
 
             cnt->prev_event = cnt->event_nr;
@@ -737,6 +737,8 @@ static int motion_init(struct context *cnt)
      * We initialize cnt->event_nr to 1 and cnt->prev_event to 0 (not really needed) so
      * that certain code below does not run until motion has been detected the first time 
      */
+    cnt->total_events = 0;
+
     pthread_mutex_lock(&global_lock);
     cnt->event_nr = event_number_start;
     pthread_mutex_unlock(&global_lock);
@@ -744,6 +746,7 @@ static int motion_init(struct context *cnt)
 
     cnt->lightswitch_framecounter = 0;
     cnt->detecting_motion = 0;
+    cnt->lasteventendtime = cnt->currenttime;
     cnt->makemovie = 0;
 
     MOTION_LOG(NTC, TYPE_ALL, NO_ERRNO, "%s: Thread %d started", 
@@ -1819,6 +1822,7 @@ static void *motion_loop(void *arg)
              */
             if (cnt->conf.emulate_motion && (cnt->startup_frames == 0)) {
                 cnt->detecting_motion = 1;
+                cnt->lasteventendtime = cnt->currenttime;
                 MOTION_LOG(INF, TYPE_ALL, NO_ERRNO, "%s: Emulating motion");
 #ifdef HAVE_FFMPEG
                 if (cnt->ffmpeg_output || (cnt->conf.useextpipe && cnt->extpipe)) {
@@ -1857,6 +1861,7 @@ static void *motion_loop(void *arg)
                 if (frame_count >= cnt->conf.minimum_motion_frames) {
                     cnt->current_image->flags |= (IMAGE_TRIGGER | IMAGE_SAVE);
                     cnt->detecting_motion = 1;
+                    cnt->lasteventendtime = cnt->currenttime;
 #ifdef HAVE_FFMPEG
                     if (cnt->ffmpeg_output || (cnt->conf.useextpipe && cnt->extpipe)) {
 #else
@@ -1979,8 +1984,6 @@ static void *motion_loop(void *arg)
                     cnt->postcap = 0;
 
                     /* Finally we increase the event number */
-                    /* cnt->event_nr++; */
-                    /* CRR mods below  instead of commented out line above */
                     pthread_mutex_lock(&global_lock);
                     cnt->prev_event = cnt->event_nr - 1;
                     pthread_mutex_unlock(&global_lock);
@@ -3258,7 +3261,11 @@ size_t mystrftime(const struct context *cnt, char *s, size_t max, const char *us
             case 'l': // last?
                 if ( (*(pos_userformat+1) == 'a') && (*(pos_userformat+2) == 's') && (*(pos_userformat+3) == 't') )
                 {
-                    sprintf(tempstr, "%s", "last and junk");
+                    int difference = cnt->currenttime - cnt->lasteventendtime;
+                    if (difference < 120)
+                        sprintf(tempstr, "%i seconds ago", difference);
+                    else
+                        sprintf(tempstr, "%i minutes ago", difference / 60);
                     pos_userformat += 3;
                     break;
                 }
@@ -3295,6 +3302,14 @@ size_t mystrftime(const struct context *cnt, char *s, size_t max, const char *us
                 else
                     ++pos_userformat;
                 break;
+
+            case 'd': // de? (days events)
+                if (*(pos_userformat+1) == 'e')
+                {
+                    sprintf(tempstr, "%d", cnt->total_events);
+                    pos_userformat += 1;
+                    break;
+                }
 
             case 'n': // sqltype
                 if (sqltype)

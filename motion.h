@@ -379,6 +379,7 @@ struct context {
 
     pthread_t thread_id;
 
+    int total_events;
     int event_nr;
     int prev_event;
     unsigned int lightswitch_framecounter;
@@ -387,7 +388,10 @@ struct context {
     int postcap;                             /* downcounter, frames left to to send post event */
 
     int shots;
+
     unsigned int detecting_motion;
+    time_t lasteventendtime;
+
     struct tm *currenttime_tm;
     struct tm *eventtime_tm;
 
