@@ -688,27 +688,17 @@ int get_int_from_command(const char *cmd)
 
 static int get_initial_event_number(char *cmd, int threadnr)
 {
-    /*
-    const char filename[] = "/tmp/motion_event.txt";
-    FILE *fp = fopen(filename, "r");
-    if (fp)
-    {
-        fscanf(fp, "%d", &event_number);
-        fclose(fp);
-    }
-    event_number++;
-    fp = fopen(filename, "w");
-    fprintf(fp, "%d", event_number);
-    fclose(fp);
-    */
     char mycmd[1024];
-    int event_number = -1;
+    int event_number;
+    snprintf(mycmd, 1024, "%s %i", cmd, threadnr);
 
-    sprintf(mycmd, "%s %i", cmd, threadnr);
+    MOTION_LOG(INF, TYPE_ALL, NO_ERRNO, "Fetch initial event number.");
+    MOTION_LOG(INF, TYPE_ALL, NO_ERRNO, "    COMMAND: %s", mycmd);
 
-    printf("Fetching initial event number using command:\n    %s\n", mycmd);
     event_number = get_int_from_command(mycmd);
-    printf("    --> I got was: %i\n", event_number);
+
+    MOTION_LOG(INF, TYPE_ALL, NO_ERRNO, "    RESULT:  %i", event_number);
+
     return event_number;
 }
 
@@ -747,10 +737,6 @@ static int motion_init(struct context *cnt)
      * We initialize cnt->event_nr to 1 and cnt->prev_event to 0 (not really needed) so
      * that certain code below does not run until motion has been detected the first time 
      */
-    //cnt->event_nr = 1;
-    //cnt->prev_event = 0;
-    /* cnt->event_nr   = get_initial_event_number(cnt_list[0]->conf.get_initial_event_cmd, cnt->threadnr); */
-    /* cnt->event_nr   = event_number_start; // CRR */
     pthread_mutex_lock(&global_lock);
     cnt->event_nr = event_number_start;
     pthread_mutex_unlock(&global_lock);
@@ -1927,7 +1913,7 @@ static void *motion_loop(void *arg)
 
             /* 
              * Simple hack to recognize motion in a specific area 
-             * Do we need a new coversion specifier as well?? 
+             * Do we need a new conversion specifier as well?? 
              */
             if ((cnt->conf.area_detect) && (cnt->event_nr != area_once) && 
                 (cnt->current_image->flags & IMAGE_TRIGGER)) {
@@ -3268,6 +3254,14 @@ size_t mystrftime(const struct context *cnt, char *s, size_t max, const char *us
             case 'L': // motion center y
                 sprintf(tempstr, "%d", cnt->current_image->location.y);
                 break;
+
+            case 'l': // last?
+                if ( (*(pos_userformat+1) == 'a') && (*(pos_userformat+2) == 's') && (*(pos_userformat+3) == 't') )
+                {
+                    sprintf(tempstr, "%s", "last and junk");
+                    pos_userformat += 3;
+                    break;
+                }
 
             case 'o': // threshold
                 sprintf(tempstr, "%d", cnt->threshold);
