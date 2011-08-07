@@ -390,7 +390,10 @@ struct context {
     int shots;
 
     unsigned int detecting_motion;
+    time_t threadstarttime;
     time_t lasteventendtime;
+    int fifteen_minute_event_bucket[15];
+    int fifteen_minute_event_count;
 
     struct tm *currenttime_tm;
     struct tm *eventtime_tm;

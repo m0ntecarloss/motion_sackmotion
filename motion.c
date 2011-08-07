@@ -454,6 +454,18 @@ static void motion_detected(struct context *cnt, int dev, struct image_data *img
              * in both time_t and struct tm format.
              */
 
+            {
+                //int i;
+                cnt->fifteen_minute_event_bucket[0]++;
+                cnt->fifteen_minute_event_count++;
+                //printf("********************************************************************************\n");
+                //printf("NEW EVENT\n");
+                //for(i=0;i<15;i++)
+                    //printf("    fifteen_minute_event_count[%02i] = %i\n", i, cnt->fifteen_minute_event_bucket[i]);
+                //printf("    fifteen_minute_event_count      = %i\n", cnt->fifteen_minute_event_count);
+            }
+                    
+
             cnt->total_events++;
 
             pthread_mutex_lock(&global_lock);
@@ -746,8 +758,12 @@ static int motion_init(struct context *cnt)
 
     cnt->lightswitch_framecounter = 0;
     cnt->detecting_motion = 0;
-    cnt->lasteventendtime = cnt->currenttime;
     cnt->makemovie = 0;
+
+    cnt->lasteventendtime = cnt->currenttime;
+    cnt->threadstarttime  = cnt->currenttime;
+    memset(cnt->fifteen_minute_event_bucket, 0, sizeof(cnt->fifteen_minute_event_bucket));
+    cnt->fifteen_minute_event_count = 0;
 
     MOTION_LOG(NTC, TYPE_ALL, NO_ERRNO, "%s: Thread %d started", 
                (unsigned long)pthread_getspecific(tls_key_threadnr));
@@ -1244,7 +1260,7 @@ static void *motion_loop(void *arg)
 
     while (!cnt->finish || cnt->makemovie) {
 
-    /***** MOTION LOOP - PREPARE FOR NEW FRAME SECTION *****/
+        /***** MOTION LOOP - PREPARE FOR NEW FRAME SECTION *****/
         cnt->watchdog = WATCHDOG_TMO;
 
         /* Get current time and preserver last time for frame interval calc. */
@@ -1299,6 +1315,27 @@ static void *motion_loop(void *arg)
          * is used as the ffmpeg framerate when motion is detected.
          */
         if (lastframetime != cnt->currenttime) {
+
+            /*
+             * If current time is on a minute boundary, shift all the
+             * minute buckets in the minute event bucket variable...
+             */
+            if ( ((cnt->currenttime - cnt->threadstarttime) % 60) == 0 )
+            {
+                int i;
+                cnt->fifteen_minute_event_count = 0;
+                for(i=14; i>0; i--)
+                {
+                    cnt->fifteen_minute_event_bucket[i] = cnt->fifteen_minute_event_bucket[i-1];
+                    cnt->fifteen_minute_event_count += cnt->fifteen_minute_event_bucket[i];
+                }
+                cnt->fifteen_minute_event_bucket[0] = 0;
+                //printf("--------------------------------------------------------------------------------\n");
+                //for(i=0; i<15; i++)
+                    //printf("fifteen_minute_event_bucket[%02i] = %i\n", i, cnt->fifteen_minute_event_bucket[i]);
+                //printf("fifteen_minute_event_count      = %i\n", cnt->fifteen_minute_event_count);
+            }
+
             cnt->lastrate = cnt->shots + 1;
             cnt->shots = -1;
             lastframetime = cnt->currenttime;
@@ -3210,118 +3247,139 @@ size_t mystrftime(const struct context *cnt, char *s, size_t max, const char *us
             tempstr = tempstring;
             tempstr[0] = '\0';
 
-            switch (*++pos_userformat) {
-            case '\0': // end of string
-                --pos_userformat;
-                break;
+            switch (*++pos_userformat)
+            {
+                case '\0': // end of string
+                    --pos_userformat;
+                    break;
 
-            case 'v': // event
-                sprintf(tempstr, "%02d", cnt->event_nr);
-                break;
+                case 'v': // event
+                    sprintf(tempstr, "%02d", cnt->event_nr);
+                    break;
 
-            case 'q': // shots
-                sprintf(tempstr, "%02d", cnt->current_image->shot);
-                break;
+                case 'q': // shots
+                    sprintf(tempstr, "%02d", cnt->current_image->shot);
+                    break;
 
-            case 'D': // diffs
-                sprintf(tempstr, "%d", cnt->current_image->diffs);
-                break;
+                case 'D': // diffs
+                    sprintf(tempstr, "%d", cnt->current_image->diffs);
+                    break;
 
-            case 'E': // thread name
-                if (cnt->conf.thread_name && cnt->conf.thread_name[0])
-                    snprintf(tempstr, PATH_MAX, "%s", cnt->conf.thread_name);
-                else
-                    ++pos_userformat;
-                break;
+                case 'N': // noise
+                    sprintf(tempstr, "%d", cnt->noise);
+                    break;
 
-            case 'Z': // percentage of image that contained motion
-                sprintf(tempstr, "%d", 100 * (cnt->current_image->location.width * cnt->current_image->location.height) / (cnt->imgs.width * cnt->imgs.height));
-                break;
+                case 'i': // motion width
+                    sprintf(tempstr, "%d", cnt->current_image->location.width);
+                    break;
 
-            case 'N': // noise
-                sprintf(tempstr, "%d", cnt->noise);
-                break;
+                case 'J': // motion height
+                    sprintf(tempstr, "%d", cnt->current_image->location.height);
+                    break;
 
-            case 'i': // motion width
-                sprintf(tempstr, "%d", cnt->current_image->location.width);
-                break;
+                case 'K': // motion center x
+                    sprintf(tempstr, "%d", cnt->current_image->location.x);
+                    break;
 
-            case 'J': // motion height
-                sprintf(tempstr, "%d", cnt->current_image->location.height);
-                break;
+                case 'L': // motion center y
+                    sprintf(tempstr, "%d", cnt->current_image->location.y);
+                    break;
 
-            case 'K': // motion center x
-                sprintf(tempstr, "%d", cnt->current_image->location.x);
-                break;
+                case 'o': // threshold
+                    sprintf(tempstr, "%d", cnt->threshold);
+                    break;
 
-            case 'L': // motion center y
-                sprintf(tempstr, "%d", cnt->current_image->location.y);
-                break;
+                case 'Q': // number of labels
+                    sprintf(tempstr, "%d", cnt->current_image->total_labels);
+                    break;
 
-            case 'l': // last?
-                if ( (*(pos_userformat+1) == 'a') && (*(pos_userformat+2) == 's') && (*(pos_userformat+3) == 't') )
-                {
-                    int difference = cnt->currenttime - cnt->lasteventendtime;
-                    if (difference < 120)
-                        sprintf(tempstr, "%i seconds ago", difference);
+                case 't': // thread number
+                    sprintf(tempstr, "%d",(int)(unsigned long) pthread_getspecific(tls_key_threadnr));
+                    break;
+
+                case 'C': // text_event
+                    if (cnt->text_event_string && cnt->text_event_string[0])
+                        snprintf(tempstr, PATH_MAX, "%s", cnt->text_event_string);
                     else
-                        sprintf(tempstr, "%i minutes ago", difference / 60);
-                    pos_userformat += 3;
+                        ++pos_userformat;
                     break;
-                }
 
-            case 'o': // threshold
-                sprintf(tempstr, "%d", cnt->threshold);
-                break;
+                case 'f': // filename -- or %fps
+                    if ((*(pos_userformat+1) == 'p') && (*(pos_userformat+2) == 's')) {
+                        sprintf(tempstr, "%d", cnt->movie_fps);
+                        pos_userformat += 2;
+                        break;
+                    }
 
-            case 'Q': // number of labels
-                sprintf(tempstr, "%d", cnt->current_image->total_labels);
-                break;
-
-            case 't': // thread number
-                sprintf(tempstr, "%d",(int)(unsigned long)
-                        pthread_getspecific(tls_key_threadnr));
-                break;
-
-            case 'C': // text_event
-                if (cnt->text_event_string && cnt->text_event_string[0])
-                    snprintf(tempstr, PATH_MAX, "%s", cnt->text_event_string);
-                else
-                    ++pos_userformat;
-                break;
-
-            case 'f': // filename -- or %fps
-                if ((*(pos_userformat+1) == 'p') && (*(pos_userformat+2) == 's')) {
-                    sprintf(tempstr, "%d", cnt->movie_fps);
-                    pos_userformat += 2;
+                    if (filename)
+                        snprintf(tempstr, PATH_MAX, "%s", filename);
+                    else
+                        ++pos_userformat;
                     break;
-                }
 
-                if (filename)
-                    snprintf(tempstr, PATH_MAX, "%s", filename);
-                else
-                    ++pos_userformat;
-                break;
-
-            case 'd': // de? (days events)
-                if (*(pos_userformat+1) == 'e')
-                {
-                    sprintf(tempstr, "%d", cnt->total_events);
-                    pos_userformat += 1;
+                case 'n': // sqltype
+                    if (sqltype)
+                        sprintf(tempstr, "%d", sqltype);
+                    else
+                        ++pos_userformat;
                     break;
-                }
 
-            case 'n': // sqltype
-                if (sqltype)
-                    sprintf(tempstr, "%d", sqltype);
-                else
-                    ++pos_userformat;
-                break;
 
-            default: // Any other code is copied with the %-sign
-                *format++ = '%';
-                *format++ = *pos_userformat;
-                continue;
+                //*********************************************
+                // CRR new specifiers
+                //*********************************************
+                case 'Z': // percentage of image that contained motion
+                    sprintf(tempstr, "%d", 100 * (cnt->current_image->location.width * cnt->current_image->location.height) / (cnt->imgs.width * cnt->imgs.height));
+                    break;
+
+                case 'E': // thread name
+                    if (cnt->conf.thread_name && cnt->conf.thread_name[0])
+                        snprintf(tempstr, PATH_MAX, "%s", cnt->conf.thread_name);
+                    else
+                        ++pos_userformat;
+                    break;
+
+                case 'l': // last?
+                    if ( (*(pos_userformat+1) == 'a') && (*(pos_userformat+2) == 's') && (*(pos_userformat+3) == 't') )
+                    {
+                        int seconds = cnt->currenttime - cnt->lasteventendtime;
+                        int hours   = seconds / 3600;
+                        int minutes = (seconds - (hours * 3600)) / 60;
+                        seconds = seconds - (hours * 3600) - (minutes * 60);
+                        if (cnt->threadstarttime == cnt->lasteventendtime)
+                            sprintf(tempstr, "none");
+                        else if (hours > 1)
+                            sprintf(tempstr, "%i hr, %i min, %i sec ago", hours, minutes, seconds);
+                        else if (minutes > 1)
+                            sprintf(tempstr, "%i min, %i sec ago", minutes, seconds);
+                        else if (minutes > 0)
+                            sprintf(tempstr, "xxx %i min, %i sec ago xxx", minutes, seconds);
+                        else
+                            sprintf(tempstr, "xxx %i seconds ago xxx", seconds);
+                        pos_userformat += 3;
+                        break;
+                    }
+
+                case 'a': // de? (days events)
+                    // FIX! This is only temporary to get the date to display (had case 'd' which prevented day from being displayed)
+                    if (*(pos_userformat+1) == 'e')
+                    {
+                        sprintf(tempstr, "%d", cnt->total_events);
+                        pos_userformat += 1;
+                        break;
+                    }
+                case 'x': // last 15 minute event count
+                    // FIX SPECIFIER!
+                    sprintf(tempstr, "%d", cnt->fifteen_minute_event_count);
+                    break;
+
+                //*********************************************
+                //*********************************************
+
+                default: // Any other code is copied with the %-sign
+                    *format++ = '%';
+                    *format++ = *pos_userformat;
+                    continue;
             }
 
             /* 
