@@ -394,6 +394,9 @@ struct context {
     time_t lasteventendtime;
     int fifteen_minute_event_bucket[15];
     int fifteen_minute_event_count;
+    int fifteen_minute_event_time_counter[15];
+    int fifteen_minute_event_time;
+    int motion_detected_this_second;
 
     struct tm *currenttime_tm;
     struct tm *eventtime_tm;

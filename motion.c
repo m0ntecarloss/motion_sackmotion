@@ -418,6 +418,8 @@ static void motion_detected(struct context *cnt, int dev, struct image_data *img
     struct images *imgs = &cnt->imgs;
     struct coord *location = &img->location;
 
+    cnt->motion_detected_this_second = 1;
+
     /* Draw location */
     if (cnt->locate_motion_mode == LOCATE_ON) {
 
@@ -455,16 +457,9 @@ static void motion_detected(struct context *cnt, int dev, struct image_data *img
              */
 
             {
-                //int i;
                 cnt->fifteen_minute_event_bucket[0]++;
                 cnt->fifteen_minute_event_count++;
-                //printf("********************************************************************************\n");
-                //printf("NEW EVENT\n");
-                //for(i=0;i<15;i++)
-                    //printf("    fifteen_minute_event_count[%02i] = %i\n", i, cnt->fifteen_minute_event_bucket[i]);
-                //printf("    fifteen_minute_event_count      = %i\n", cnt->fifteen_minute_event_count);
             }
-                    
 
             cnt->total_events++;
 
@@ -764,6 +759,10 @@ static int motion_init(struct context *cnt)
     cnt->threadstarttime  = cnt->currenttime;
     memset(cnt->fifteen_minute_event_bucket, 0, sizeof(cnt->fifteen_minute_event_bucket));
     cnt->fifteen_minute_event_count = 0;
+
+    memset(cnt->fifteen_minute_event_time_counter, 0, sizeof(cnt->fifteen_minute_event_time_counter));
+    cnt->fifteen_minute_event_time = 0;
+    cnt->motion_detected_this_second = 0;
 
     MOTION_LOG(NTC, TYPE_ALL, NO_ERRNO, "%s: Thread %d started", 
                (unsigned long)pthread_getspecific(tls_key_threadnr));
@@ -1316,12 +1315,32 @@ static void *motion_loop(void *arg)
          */
         if (lastframetime != cnt->currenttime) {
 
+            if (cnt->motion_detected_this_second)
+            {
+                cnt->fifteen_minute_event_time_counter[0]++;
+                cnt->fifteen_minute_event_time++;
+            }
+            cnt->motion_detected_this_second = 0;
+            /*
+            {
+                int i;
+                printf("%03i", cnt->fifteen_minute_event_time);
+                for(i=0;i<15;i++)
+                    printf(",    %02i", cnt->fifteen_minute_event_time_counter[i]);
+                printf("\n");
+            }
+            */
+
+
             /*
              * If current time is on a minute boundary, shift all the
              * minute buckets in the minute event bucket variable...
              */
             if ( ((cnt->currenttime - cnt->threadstarttime) % 60) == 0 )
             {
+
+                //printf("--------------------------------------------------------------------------------\n");
+
                 int i;
                 cnt->fifteen_minute_event_count = 0;
                 for(i=14; i>0; i--)
@@ -1330,10 +1349,15 @@ static void *motion_loop(void *arg)
                     cnt->fifteen_minute_event_count += cnt->fifteen_minute_event_bucket[i];
                 }
                 cnt->fifteen_minute_event_bucket[0] = 0;
-                //printf("--------------------------------------------------------------------------------\n");
-                //for(i=0; i<15; i++)
-                    //printf("fifteen_minute_event_bucket[%02i] = %i\n", i, cnt->fifteen_minute_event_bucket[i]);
-                //printf("fifteen_minute_event_count      = %i\n", cnt->fifteen_minute_event_count);
+
+
+                cnt->fifteen_minute_event_time = 0;
+                for(i=14; i>0; i--)
+                {
+                    cnt->fifteen_minute_event_time_counter[i] = cnt->fifteen_minute_event_time_counter[i-1];
+                    cnt->fifteen_minute_event_time += cnt->fifteen_minute_event_time_counter[i];
+                }
+                cnt->fifteen_minute_event_time_counter[0] = 0;
             }
 
             cnt->lastrate = cnt->shots + 1;
@@ -3371,6 +3395,28 @@ size_t mystrftime(const struct context *cnt, char *s, size_t max, const char *us
                 case 'x': // last 15 minute event count
                     // FIX SPECIFIER!
                     sprintf(tempstr, "%d", cnt->fifteen_minute_event_count);
+                    break;
+
+                case 'j':
+                    sprintf(tempstr, "%2i %2i %2i %2i %2i %2i %2i %2i %2i %2i %2i %2i %2i %2i %2i", cnt->fifteen_minute_event_time_counter[0],
+                                                                                                    cnt->fifteen_minute_event_time_counter[1],
+                                                                                                    cnt->fifteen_minute_event_time_counter[2],
+                                                                                                    cnt->fifteen_minute_event_time_counter[3],
+                                                                                                    cnt->fifteen_minute_event_time_counter[4],
+                                                                                                    cnt->fifteen_minute_event_time_counter[5],
+                                                                                                    cnt->fifteen_minute_event_time_counter[6],
+                                                                                                    cnt->fifteen_minute_event_time_counter[7],
+                                                                                                    cnt->fifteen_minute_event_time_counter[8],
+                                                                                                    cnt->fifteen_minute_event_time_counter[9],
+                                                                                                    cnt->fifteen_minute_event_time_counter[10],
+                                                                                                    cnt->fifteen_minute_event_time_counter[11],
+                                                                                                    cnt->fifteen_minute_event_time_counter[12],
+                                                                                                    cnt->fifteen_minute_event_time_counter[13],
+                                                                                                    cnt->fifteen_minute_event_time_counter[14]);
+                    break;
+
+                case 'z':
+                    sprintf(tempstr, "%04i (%3.1f)", cnt->fifteen_minute_event_time, (100.0 * cnt->fifteen_minute_event_time) / (15.0 * 60.0));
                     break;
 
                 //*********************************************
