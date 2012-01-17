@@ -546,6 +546,14 @@ static void event_camera_lost(struct context *cnt, int type ATTRIBUTE_UNUSED,
         exec_command(cnt, cnt->conf.on_camera_lost, NULL, 0);
 }
 
+static void event_camera_restored(struct context *cnt, int type ATTRIBUTE_UNUSED,
+            unsigned char *img ATTRIBUTE_UNUSED, char *dummy1 ATTRIBUTE_UNUSED,
+            void *dummy2 ATTRIBUTE_UNUSED, struct tm *currenttime_tm ATTRIBUTE_UNUSED)
+{
+    if (cnt->conf.on_camera_restored)
+        exec_command(cnt, cnt->conf.on_camera_restored, NULL, 0);
+}
+
 static void on_movie_end_command(struct context *cnt, int type ATTRIBUTE_UNUSED,
                                  unsigned char *dummy ATTRIBUTE_UNUSED, char *filename,
                                  void *arg, struct tm *tm ATTRIBUTE_UNUSED)
@@ -1063,6 +1071,10 @@ struct event_handlers event_handlers[] = {
     {
     EVENT_STOP,
     event_stop_stream
+    },
+    {
+    EVENT_CAMERA_RESTORED,
+    event_camera_restored
     },
     {0, NULL}
 };

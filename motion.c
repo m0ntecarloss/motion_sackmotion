@@ -418,7 +418,7 @@ static void motion_detected(struct context *cnt, int dev, struct image_data *img
     struct images *imgs = &cnt->imgs;
     struct coord *location = &img->location;
 
-    cnt->motion_detected_this_second = 1;
+    cnt->motion_diffs_this_second += img->diffs;
 
     /* Draw location */
     if (cnt->locate_motion_mode == LOCATE_ON) {
@@ -455,11 +455,6 @@ static void motion_detected(struct context *cnt, int dev, struct image_data *img
              * Reset prev_event number to current event and save event time
              * in both time_t and struct tm format.
              */
-
-            {
-                cnt->fifteen_minute_event_bucket[0]++;
-                cnt->fifteen_minute_event_count++;
-            }
 
             cnt->total_events++;
 
@@ -543,7 +538,7 @@ static void process_image_ring(struct context *cnt, unsigned int max_images)
      */
     struct image_data *saved_current_image = cnt->current_image;
 
-    /* If image is flaged to be saved and not saved yet, process it */
+    /* If image is flagged to be saved and not saved yet, process it */
     do {
         /* Check if we should save/send this image, breakout if not */
         if ((cnt->imgs.image_ring[cnt->imgs.image_ring_out].flags & (IMAGE_SAVE | IMAGE_SAVED)) != IMAGE_SAVE)
@@ -592,7 +587,7 @@ static void process_image_ring(struct context *cnt, unsigned int max_images)
                 (cnt->conf.useextpipe && cnt->extpipe)) {
 #endif
                 /* 
-                 * movie_last_shoot is -1 when file is created,
+                 * movie_last_shot is -1 when file is created,
                  * we don't know how many frames there is in first sec 
                  */
                 if (cnt->movie_last_shot >= 0) {
@@ -757,12 +752,13 @@ static int motion_init(struct context *cnt)
 
     cnt->lasteventendtime = cnt->currenttime;
     cnt->threadstarttime  = cnt->currenttime;
-    memset(cnt->fifteen_minute_event_bucket, 0, sizeof(cnt->fifteen_minute_event_bucket));
-    cnt->fifteen_minute_event_count = 0;
 
-    memset(cnt->fifteen_minute_event_time_counter, 0, sizeof(cnt->fifteen_minute_event_time_counter));
-    cnt->fifteen_minute_event_time = 0;
-    cnt->motion_detected_this_second = 0;
+    /* CRR START */
+    memset(cnt->motion_event_buckets, 0, sizeof(cnt->motion_event_buckets));
+    memset(cnt->motion_diff_buckets,  0, sizeof(cnt->motion_diff_buckets));
+    cnt->motion_diff_bucket_max   = 0;
+    cnt->motion_diffs_this_second = 0;
+    /* CRR END */
 
     MOTION_LOG(NTC, TYPE_ALL, NO_ERRNO, "%s: Thread %d started", 
                (unsigned long)pthread_getspecific(tls_key_threadnr));
@@ -1315,22 +1311,14 @@ static void *motion_loop(void *arg)
          */
         if (lastframetime != cnt->currenttime) {
 
-            if (cnt->motion_detected_this_second)
-            {
-                cnt->fifteen_minute_event_time_counter[0]++;
-                cnt->fifteen_minute_event_time++;
-            }
-            cnt->motion_detected_this_second = 0;
-            /*
-            {
-                int i;
-                printf("%03i", cnt->fifteen_minute_event_time);
-                for(i=0;i<15;i++)
-                    printf(",    %02i", cnt->fifteen_minute_event_time_counter[i]);
-                printf("\n");
-            }
-            */
 
+            /* CRR START */
+            if (cnt->motion_diffs_this_second > 0)
+            {
+                cnt->motion_diff_buckets[0] += cnt->motion_diffs_this_second;
+                cnt->motion_event_buckets[0]++;
+            }
+            cnt->motion_diffs_this_second = 0;
 
             /*
              * If current time is on a minute boundary, shift all the
@@ -1338,27 +1326,23 @@ static void *motion_loop(void *arg)
              */
             if ( ((cnt->currenttime - cnt->threadstarttime) % 60) == 0 )
             {
-
-                //printf("--------------------------------------------------------------------------------\n");
-
                 int i;
-                cnt->fifteen_minute_event_count = 0;
-                for(i=14; i>0; i--)
-                {
-                    cnt->fifteen_minute_event_bucket[i] = cnt->fifteen_minute_event_bucket[i-1];
-                    cnt->fifteen_minute_event_count += cnt->fifteen_minute_event_bucket[i];
-                }
-                cnt->fifteen_minute_event_bucket[0] = 0;
 
-
-                cnt->fifteen_minute_event_time = 0;
-                for(i=14; i>0; i--)
+                if(cnt->motion_diff_buckets[0] > cnt->motion_diff_bucket_max)
                 {
-                    cnt->fifteen_minute_event_time_counter[i] = cnt->fifteen_minute_event_time_counter[i-1];
-                    cnt->fifteen_minute_event_time += cnt->fifteen_minute_event_time_counter[i];
+                    cnt->motion_diff_bucket_max = cnt->motion_diff_buckets[0];
+                    printf("New max for thread %d --> %i\n", cnt->threadnr, cnt->motion_diff_bucket_max);
                 }
-                cnt->fifteen_minute_event_time_counter[0] = 0;
+
+                for(i=MAX_BUCKETS-1; i>0; i--)
+                {
+                    cnt->motion_diff_buckets[i]  = cnt->motion_diff_buckets[i-1];
+                    cnt->motion_event_buckets[i] = cnt->motion_event_buckets[i-1];
+                }
+                cnt->motion_event_buckets[0] = 0;
+                cnt->motion_diff_buckets[0]  = 0;
             }
+            /* CRR END */
 
             cnt->lastrate = cnt->shots + 1;
             cnt->shots = -1;
@@ -1488,6 +1472,7 @@ static void *motion_loop(void *arg)
                     /* If we previously logged starting a grey image, now log video re-start */
                     MOTION_LOG(NTC, TYPE_ALL, NO_ERRNO, "%s: Video signal re-acquired");
                     // event for re-acquired video signal can be called here
+                    event(cnt, EVENT_CAMERA_RESTORED, NULL, NULL, NULL, cnt->currenttime_tm);
                 }
                 cnt->missing_frame_counter = 0;
 
@@ -1774,7 +1759,7 @@ static void *motion_loop(void *arg)
                     cnt->current_image->diffs = 0;
                     cnt->lightswitch_framecounter = 0;
 
-                    MOTION_LOG(INF, TYPE_ALL, NO_ERRNO, "%s: micro-lightswitch!"); 
+                    MOTION_LOG(INF, TYPE_ALL, NO_ERRNO, "%s: micro-lightswitch (%d)!", cnt->lightswitch_framecounter); 
                 } else {
                     alg_update_reference_frame(cnt, UPDATE_REF_FRAME);
                 }
@@ -1862,6 +1847,13 @@ static void *motion_loop(void *arg)
                           cnt->imgs.height - 10 * text_size_factor,
                           cnt->imgs.width, tmp, cnt->conf.text_double);
             }
+
+
+            /* CRR START */
+            /* draw chart or something */
+            draw_chart(cnt, cnt->imgs.width, cnt->imgs.height);
+            // draw_chart2(cnt, cnt->imgs.width, cnt->imgs.height);
+            /* CRR END */
 
 
         /***** MOTION LOOP - ACTIONS AND EVENT CONTROL SECTION *****/
@@ -3353,7 +3345,9 @@ size_t mystrftime(const struct context *cnt, char *s, size_t max, const char *us
                 // CRR new specifiers
                 //*********************************************
                 case 'Z': // percentage of image that contained motion
-                    sprintf(tempstr, "%d", 100 * (cnt->current_image->location.width * cnt->current_image->location.height) / (cnt->imgs.width * cnt->imgs.height));
+                    // sprintf(tempstr, "%d", 100 * (cnt->current_image->location.width * cnt->current_image->location.height) / (cnt->imgs.width * cnt->imgs.height));
+                    // sprintf(tempstr, "%d", (100 * cnt->current_image->diffs) / (cnt->imgs.width * cnt->imgs.height));
+                    sprintf(tempstr, "cbd's = %i,  max = %i", cnt->motion_diff_buckets[0], cnt->motion_diff_bucket_max);
                     break;
 
                 case 'E': // thread name
@@ -3392,31 +3386,23 @@ size_t mystrftime(const struct context *cnt, char *s, size_t max, const char *us
                         pos_userformat += 1;
                         break;
                     }
-                case 'x': // last 15 minute event count
-                    // FIX SPECIFIER!
-                    sprintf(tempstr, "%d", cnt->fifteen_minute_event_count);
-                    break;
 
                 case 'j':
-                    sprintf(tempstr, "%2i %2i %2i %2i %2i %2i %2i %2i %2i %2i %2i %2i %2i %2i %2i", cnt->fifteen_minute_event_time_counter[0],
-                                                                                                    cnt->fifteen_minute_event_time_counter[1],
-                                                                                                    cnt->fifteen_minute_event_time_counter[2],
-                                                                                                    cnt->fifteen_minute_event_time_counter[3],
-                                                                                                    cnt->fifteen_minute_event_time_counter[4],
-                                                                                                    cnt->fifteen_minute_event_time_counter[5],
-                                                                                                    cnt->fifteen_minute_event_time_counter[6],
-                                                                                                    cnt->fifteen_minute_event_time_counter[7],
-                                                                                                    cnt->fifteen_minute_event_time_counter[8],
-                                                                                                    cnt->fifteen_minute_event_time_counter[9],
-                                                                                                    cnt->fifteen_minute_event_time_counter[10],
-                                                                                                    cnt->fifteen_minute_event_time_counter[11],
-                                                                                                    cnt->fifteen_minute_event_time_counter[12],
-                                                                                                    cnt->fifteen_minute_event_time_counter[13],
-                                                                                                    cnt->fifteen_minute_event_time_counter[14]);
-                    break;
-
-                case 'z':
-                    sprintf(tempstr, "%04i (%3.1f)", cnt->fifteen_minute_event_time, (100.0 * cnt->fifteen_minute_event_time) / (15.0 * 60.0));
+                    sprintf(tempstr, "%2i %2i %2i %2i %2i %2i %2i %2i %2i %2i %2i %2i %2i %2i %2i", cnt->motion_event_buckets[0],
+                                                                                                    cnt->motion_event_buckets[1],
+                                                                                                    cnt->motion_event_buckets[2],
+                                                                                                    cnt->motion_event_buckets[3],
+                                                                                                    cnt->motion_event_buckets[4],
+                                                                                                    cnt->motion_event_buckets[5],
+                                                                                                    cnt->motion_event_buckets[6],
+                                                                                                    cnt->motion_event_buckets[7],
+                                                                                                    cnt->motion_event_buckets[8],
+                                                                                                    cnt->motion_event_buckets[9],
+                                                                                                    cnt->motion_event_buckets[10],
+                                                                                                    cnt->motion_event_buckets[11],
+                                                                                                    cnt->motion_event_buckets[12],
+                                                                                                    cnt->motion_event_buckets[13],
+                                                                                                    cnt->motion_event_buckets[14]);
                     break;
 
                 //*********************************************

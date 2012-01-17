@@ -1123,6 +1123,124 @@ static int draw_textn(unsigned char *image, unsigned int startx, unsigned int st
     return 0;
 }
 
+
+void draw_chart(struct context *cnt, unsigned int width, unsigned int height)
+{
+    unsigned char *image = cnt->current_image->image;
+
+    const int chart_height = 24;
+    const int chart_width  = width / 2;
+    const int x_offset     = 10;
+    const int y_offset     = height - 10;
+
+    const int bucket_width = chart_width / MAX_BUCKETS;
+
+    int bucket_x_start, bucket_x_end;
+    int bucket_y_start, bucket_y_end;
+    int bucket_height;
+    int bucket;
+    int x,y,i;
+
+    for(bucket=0; bucket<MAX_BUCKETS; bucket++)
+    {
+        bucket_x_start = x_offset + (bucket * bucket_width) + 1;
+        bucket_x_end   = bucket_x_start + bucket_width - 1;
+
+        bucket_height  = ((cnt->motion_event_buckets[bucket] / 60.0) * chart_height);
+
+        bucket_y_end   = y_offset;
+        bucket_y_start = bucket_y_end - bucket_height;
+
+        for(y=bucket_y_start; y<bucket_y_end; y++)
+        {
+            for(x=bucket_x_start; x<bucket_x_end; x++)
+            {
+                i = (width * y) + x;
+                image[i] =~image[i];
+            }
+        }
+
+        if (bucket > 0)
+        {
+            for(y=bucket_y_end - chart_height; y < bucket_y_end; y++)
+            {
+                i = (width * y) + bucket_x_start - 1;
+                image[i] = ~image[i];
+            }
+        }
+    }
+
+}
+
+
+void draw_chart2(struct context *cnt, unsigned int width, unsigned int height)
+{
+    unsigned char *image = cnt->current_image->image;
+
+    const int chart_height = 30;
+    const int chart_width  = (width / 2) - 10;
+
+    const int x_min        = width / 2;
+    const int x_max        = x_min + chart_width;
+
+    const int y_min        = 10;
+    const int y_max        = y_min + chart_height;
+
+    const int y_bottom     = 10 + chart_height;
+
+    const int bucket_width = chart_width / MAX_BUCKETS;
+
+    int bucket_left, bucket_right;
+    int bucket_top, bucket_bottom;
+    int bucket_height;
+    int bucket;
+    int x,y,i;
+
+    for(bucket=0; bucket<MAX_BUCKETS; bucket++)
+    {
+        if(cnt->motion_diff_bucket_max > 0)
+        {
+            bucket_height = ((cnt->motion_diff_buckets[bucket] / cnt->motion_diff_bucket_max) * chart_height);
+
+            bucket_left = x_min + (bucket * bucket_width) + 1;
+            if(bucket_left < x_min)
+                bucket_left = x_min;
+
+            bucket_right = bucket_left + bucket_width - 1;
+            if(bucket_right > x_max)
+                bucket_right = x_max;
+
+            bucket_bottom = y_max;
+            if(bucket_bottom > y_max)
+                bucket_bottom = y_max;
+
+            bucket_top = bucket_bottom - bucket_height;
+            if(bucket_top < y_min)
+                bucket_top = y_min;
+
+            for(y=bucket_top; y<bucket_bottom; y++)
+            {
+                for(x=bucket_left; x<bucket_right; x++)
+                {
+                    i = (width * y) + x;
+                    image[i] =~image[i];
+                }
+            }
+
+            if (bucket > 0)
+            {
+                for(y=bucket_bottom - chart_height; y < bucket_bottom; y++)
+                {
+                    i = (width * y) + bucket_left - 1;
+                    image[i] = ~image[i];
+                }
+            }
+        }
+    }
+
+}
+
+
 /**
  * draw_text 
  */

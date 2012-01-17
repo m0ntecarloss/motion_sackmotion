@@ -301,7 +301,7 @@ static long netcam_check_content_length(char *header)
                        " Content-Length but value %ld", length);
     }
 
-    MOTION_LOG(INF, TYPE_NETCAM, NO_ERRNO, "%s: Content-Length %ld", 
+    MOTION_LOG(DBG, TYPE_NETCAM, NO_ERRNO, "%s: Content-Length %ld", 
                length);
 
     return length;
@@ -391,7 +391,7 @@ static int netcam_check_content_type(char *header)
     if (!header_process(header, "Content-type", http_process_type, &content_type))
         return -1;
 
-    MOTION_LOG(INF, TYPE_NETCAM, NO_ERRNO, "%s: Content-type %s", 
+    MOTION_LOG(DBG, TYPE_NETCAM, NO_ERRNO, "%s: Content-type %s", 
                content_type);
 
     if (!strcmp(content_type, "image/jpeg")) {
@@ -509,7 +509,7 @@ static int netcam_read_next_header(netcam_context_ptr netcam)
         free(header);
     }
 
-    MOTION_LOG(INF, TYPE_NETCAM, NO_ERRNO, "%s: Found image header record"); 
+    MOTION_LOG(DBG, TYPE_NETCAM, NO_ERRNO, "%s: Found image header record"); 
 
     free(header);
     return 0;
@@ -1259,7 +1259,8 @@ static int netcam_read_html_jpeg(netcam_context_ptr netcam)
                      * module netcam_wget.c to do this job!
                      */
 
-                    MOTION_LOG(NTC, TYPE_NETCAM, NO_ERRNO,
+                    // MOTION_LOG(NTC, TYPE_NETCAM, NO_ERRNO,
+                    MOTION_LOG(DBG, TYPE_NETCAM, NO_ERRNO,
                                "%s: Potential split boundary - "
                                "%d chars flushed, %d "
                                "re-positioned", ix,

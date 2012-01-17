@@ -214,6 +214,8 @@
 #define BUFSIZE_5MEG      (5  * BUFSIZE_1MEG)
 #define BUFSIZE_10MEG     (10 * BUFSIZE_1MEG)
 
+#define MAX_BUCKETS       30
+
 /* Forward declaration, used in track.h */
 struct images;
 
@@ -283,6 +285,8 @@ struct image_data {
  */
 
 /* date/time drawing, draw.c */
+void draw_chart(struct context *cnt, unsigned int width, unsigned int height);
+void draw_chart2(struct context *cnt, unsigned int width, unsigned int height);
 int draw_text(unsigned char *image, unsigned int startx, unsigned int starty, unsigned int width, const char *text, unsigned int factor);
 int initialize_chars(void);
 
@@ -392,11 +396,11 @@ struct context {
     unsigned int detecting_motion;
     time_t threadstarttime;
     time_t lasteventendtime;
-    int fifteen_minute_event_bucket[15];
-    int fifteen_minute_event_count;
-    int fifteen_minute_event_time_counter[15];
-    int fifteen_minute_event_time;
-    int motion_detected_this_second;
+
+    int motion_event_buckets[MAX_BUCKETS];
+    int motion_diff_buckets[MAX_BUCKETS];
+    int motion_diff_bucket_max;
+    int motion_diffs_this_second;
 
     struct tm *currenttime_tm;
     struct tm *eventtime_tm;

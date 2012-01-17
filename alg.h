@@ -31,6 +31,7 @@ struct segment {
     int count;
 };
 
+void alg_draw_chart(struct images *, int width, int height);
 void alg_locate_center_size(struct images *, int width, int height, struct coord *);
 void alg_draw_location(struct coord *, struct images *, int width, unsigned char *, int, int, int);
 void alg_draw_red_location(struct coord *, struct images *, int width, unsigned char *, int, int, int);

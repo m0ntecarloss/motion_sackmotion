@@ -288,7 +288,7 @@ static int netcam_init_jpeg(netcam_context_ptr netcam, j_decompress_ptr cinfo)
             return NETCAM_GENERAL_ERROR | NETCAM_NOTHING_NEW_ERROR;
         }
 
-        MOTION_LOG(INF, TYPE_NETCAM, NO_ERRNO,
+        MOTION_LOG(DBG, TYPE_NETCAM, NO_ERRNO,
                    "%s: ***new pic delay successful***");
     }
 
@@ -328,8 +328,10 @@ static int netcam_init_jpeg(netcam_context_ptr netcam, j_decompress_ptr cinfo)
     /* Start the decompressor. */
     jpeg_start_decompress(cinfo);
 
-    MOTION_LOG(INF, TYPE_NETCAM, NO_ERRNO, "%s: jpeg_error %d",
-               netcam->jpeg_error);
+    if(netcam->jpeg_error != 0)
+        MOTION_LOG(WRN, TYPE_NETCAM, NO_ERRNO, "%s: jpeg_error %d", netcam->jpeg_error);
+    else
+        MOTION_LOG(DBG, TYPE_NETCAM, NO_ERRNO, "%s: jpeg_error %d", netcam->jpeg_error);
 
     return netcam->jpeg_error;
 }
@@ -409,8 +411,10 @@ static int netcam_image_conv(netcam_context_ptr netcam,
         /* Rotate as specified */
         rotate_map(netcam->cnt, image);
 
-    MOTION_LOG(INF, TYPE_NETCAM, NO_ERRNO, "%s: jpeg_error %d",
-               netcam->jpeg_error);
+    if(netcam->jpeg_error != 0)
+        MOTION_LOG(WRN, TYPE_NETCAM, NO_ERRNO, "%s: jpeg_error %d", netcam->jpeg_error);
+    else
+        MOTION_LOG(DBG, TYPE_NETCAM, NO_ERRNO, "%s: jpeg_error %d", netcam->jpeg_error);
 
     return netcam->jpeg_error;
 }
@@ -444,7 +448,7 @@ int netcam_proc_jpeg(netcam_context_ptr netcam, unsigned char *image)
      * decompress it.  netcam_init_jpeg uses
      * netcam->mutex to do this.
      */
-    MOTION_LOG(INF, TYPE_NETCAM, NO_ERRNO, "%s: processing jpeg image"
+    MOTION_LOG(DBG, TYPE_NETCAM, NO_ERRNO, "%s: processing jpeg image"
                " - content length %d", netcam->latest->content_length);
 
     ret = netcam_init_jpeg(netcam, &cinfo);

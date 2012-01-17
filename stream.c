@@ -953,8 +953,8 @@ static void stream_add_client(struct stream *list, int sc)
                                  "Server: Motion/"VERSION"\r\n"
                                  "Connection: close\r\n"
                                  "Max-Age: 0\r\n"
-                                 "Expires: 0\r\n"
-                                 "Cache-Control: no-cache, private\r\n"
+                                 "Expires: Mon, 3 Jan 2000 12:34:56 GMT\r\n"
+                                 "Cache-Control: no-store, no-cache, must-revalidate, pre-check=0, post-check=0, max-age=0, private\r\n"
                                  "Pragma: no-cache\r\n"
                                  "Content-Type: multipart/x-mixed-replace; "
                                  "boundary=--BoundaryString\r\n\r\n";

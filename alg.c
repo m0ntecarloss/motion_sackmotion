@@ -17,6 +17,8 @@
 #define MAX2(x, y) ((x) > (y) ? (x) : (y))
 #define MAX3(x, y, z) ((x) > (y) ? ((x) > (z) ? (x) : (z)) : ((y) > (z) ? (y) : (z)))
 
+
+
 /** 
  * alg_locate_center_size 
  *      Locates the center and size of the movement. 
@@ -174,8 +176,6 @@ void alg_draw_location(struct coord *cent, struct images *imgs, int width, unsig
 {
     unsigned char *out = imgs->out;
     int x, y;
-
-    out = imgs->out;
 
     /* Debug image always gets a 'normal' box. */
     if ((mode == LOCATE_BOTH) && process_thisframe) {

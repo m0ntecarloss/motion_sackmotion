@@ -147,6 +147,7 @@ struct config conf_template = {
     on_movie_start:                 NULL,
     on_movie_end:                   NULL,
     on_camera_lost:                 NULL,
+    on_camera_restored:             NULL,
     motionvidpipe:                  NULL,
     netcam_url:                     NULL,
     netcam_userpass:                NULL,
@@ -1395,6 +1396,15 @@ config_param config_params[] = {
     "# Some hangs the motion thread. Some even hangs the PC! (default: none)",
     0,
     CONF_OFFSET(on_camera_lost),
+    copy_string,
+    print_string
+    },
+    {
+    "on_camera_restored",
+    "# Command to be executed when a lost connection to a camera is restored\n"
+    "# (default: None)",
+    0,
+    CONF_OFFSET(on_camera_restored),
     copy_string,
     print_string
     },
