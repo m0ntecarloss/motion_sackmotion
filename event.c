@@ -949,10 +949,10 @@ struct event_handlers event_handlers[] = {
         EVENT_ENDMOTION,
         event_sql_endmotion
     },
-    {
-        EVENT_MOTION,
-        event_sql_detected_motion
-    },
+//    {
+//        EVENT_MOTION,
+//        event_sql_detected_motion
+//    },
 #endif
     {
     EVENT_FILECREATE,

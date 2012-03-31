@@ -55,6 +55,7 @@ struct config conf_template = {
     emulate_motion:                 0,
     detect_motion:                  1,
     get_initial_event_cmd:          NULL,
+    get_days_events_cmd:            NULL,
     event_gap:                      DEF_EVENT_GAP,
     max_movie_time:                 DEF_MAXMOVIETIME,
     snapshot_interval:              0,
@@ -661,6 +662,14 @@ config_param config_params[] = {
         "# Command to run on startup to get the initial event number.",
         0,
         CONF_OFFSET(get_initial_event_cmd),
+        copy_string,
+        print_string
+    },
+    {
+        "get_days_events_cmd",
+        "# Command to run on startup to get the total events recorded for thread (for today.)",
+        0,
+        CONF_OFFSET(get_days_events_cmd),
         copy_string,
         print_string
     },

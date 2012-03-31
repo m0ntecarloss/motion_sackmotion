@@ -35,6 +35,7 @@ struct config {
     int emulate_motion;
     int detect_motion;
     char *get_initial_event_cmd;
+    char *get_days_events_cmd;
     int event_gap;
     int max_movie_time;
     int snapshot_interval;
