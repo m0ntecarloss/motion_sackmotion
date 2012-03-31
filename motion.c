@@ -3375,62 +3375,6 @@ size_t mystrftime(const struct context *cnt, char *s, size_t max, const char *us
                         ++pos_userformat;
                     break;
 
-                case 'y': // last motion detected time
-                    if ( (*(pos_userformat+1) == 'u') && (*(pos_userformat+2) == 'n') && (*(pos_userformat+3) == 'k') )
-                    {
-                        int junk;
-                        int seconds = cnt->currenttime - cnt->lastMotionDetectTime;
-                        int hours   = seconds / 3600;
-                        int minutes = (seconds - (hours * 3600)) / 60;
-                        seconds     = seconds - (hours * 3600) - (minutes * 60);
-
-                        if (cnt->current_image->flags & IMAGE_MOTION)
-                            junk = 1;
-                        else
-                            junk = 0;
-
-                        if (cnt->threadstarttime == cnt->lastMotionDetectTime)
-                            sprintf(tempstr, "none -- %i", junk);
-                        else if (hours > 1)
-                            sprintf(tempstr, "%i hr, %i min, %i sec ago", hours, minutes, seconds);
-                        else if (minutes > 1)
-                            sprintf(tempstr, "%i min, %i sec ago", minutes, seconds);
-                        else if (minutes > 0)
-                            sprintf(tempstr, "xxx %i min, %i sec ago xxx -- %i", minutes, seconds, junk);
-                        else
-                            sprintf(tempstr, "xxx %i seconds ago xxx -- %i", seconds, junk);
-                        pos_userformat += 3;
-                        break;
-                    }
-
-                case 'p': // last event longer than xxx seconds
-                    if ( (*(pos_userformat+1) == 'o') && (*(pos_userformat+2) == 'o') && (*(pos_userformat+3) == 'p') )
-                    {
-                        int junk;
-                        int seconds = cnt->currenttime - cnt->last5secondsofmovementtime;
-                        int hours   = seconds / 3600;
-                        int minutes = (seconds - (hours * 3600)) / 60;
-
-                        if (cnt->event_nr == cnt->prev_event)
-                            junk = 1;
-                        else
-                            junk = 0;
-
-                        seconds = seconds - (hours * 3600) - (minutes * 60);
-                        if (cnt->threadstarttime == cnt->last5secondsofmovementtime)
-                            sprintf(tempstr, "none -- %i", junk);
-                        else if (hours > 1)
-                            sprintf(tempstr, "%i hr, %i min, %i sec ago", hours, minutes, seconds);
-                        else if (minutes > 1)
-                            sprintf(tempstr, "%i min, %i sec ago", minutes, seconds);
-                        else if (minutes > 0)
-                            sprintf(tempstr, "xxx %i min, %i sec ago xxx -- %i", minutes, seconds, junk);
-                        else
-                            sprintf(tempstr, "xxx %i seconds ago xxx -- %i", seconds, junk);
-                        pos_userformat += 3;
-                        break;
-                    }
-
                 case 'l': // last?
                     if ( (*(pos_userformat+1) == 'a') && (*(pos_userformat+2) == 's') && (*(pos_userformat+3) == 't') )
                     {
