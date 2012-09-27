@@ -282,7 +282,7 @@ static int netcam_init_jpeg(netcam_context_ptr netcam, j_decompress_ptr cinfo)
         if (retcode) {    /* We assume a non-zero reply is ETIMEOUT */
             pthread_mutex_unlock(&netcam->mutex);
 
-            MOTION_LOG(WRN, TYPE_NETCAM, NO_ERRNO,
+            MOTION_LOG(INF, TYPE_NETCAM, NO_ERRNO,
                        "%s: no new pic, no signal rcvd");
 
             return NETCAM_GENERAL_ERROR | NETCAM_NOTHING_NEW_ERROR;

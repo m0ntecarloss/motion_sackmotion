@@ -3384,6 +3384,8 @@ size_t mystrftime(const struct context *cnt, char *s, size_t max, const char *us
                         seconds = seconds - (hours * 3600) - (minutes * 60);
                         if (cnt->threadstarttime == cnt->lasteventendtime)
                             sprintf(tempstr, "none");
+                        else if (hours > 24)
+                            sprintf(tempstr, "none*");
                         else if (hours > 1)
                             sprintf(tempstr, "%i hr, %i min, %i sec ago", hours, minutes, seconds);
                         else if (minutes > 1)
