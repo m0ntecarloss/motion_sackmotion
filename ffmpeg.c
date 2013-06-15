@@ -203,7 +203,7 @@ static int file_read(URLContext *h, unsigned char *buf, int size)
 /**
  * file_write
  */
-static int file_write(URLContext *h, const unsigned char *buf, int size)
+static int file_write(URLContext *h, unsigned char *buf, int size)
 {
     FILE *fh = (FILE *)h->priv_data;
     return fwrite(buf, 1, size, fh);
