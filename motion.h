@@ -424,8 +424,8 @@ struct context {
     int pipe;
     int mpipe;
 
-    struct stream stream;
     int stream_count;
+    struct stream stream;
     
 #if defined(HAVE_MYSQL) || defined(HAVE_PGSQL) || defined(HAVE_SQLITE3)
     int sql_mask;

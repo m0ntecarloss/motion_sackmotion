@@ -907,6 +907,7 @@ static void stream_flush(struct stream *list, int *stream_count, int lim)
                 client = client->prev;
                 free(tmp);
                 (*stream_count)--;
+                MOTION_LOG(WRN, TYPE_STREAM, 0, "client disconnected: Total is %i", (*stream_count));
             }
         }   /* End if (client->tmpbuffer) */
 
@@ -1040,8 +1041,11 @@ static int stream_check_write(struct stream *list)
  */
 int stream_init(struct context *cnt)
 {
+    cnt->stream_count++;
+    MOTION_LOG(WRN, TYPE_STREAM, 0, "xxx stream count is: Total is %i", cnt->stream_count);
     cnt->stream.socket = http_bindsock(cnt->conf.stream_port, cnt->conf.stream_localhost,
                                        cnt->conf.ipv6_enabled);
+    MOTION_LOG(WRN, TYPE_STREAM, 0, "b yyy stream count is: Total is %i", cnt->stream_count);
     cnt->stream.next = NULL;
     cnt->stream.prev = NULL;
     return cnt->stream.socket;
@@ -1130,8 +1134,10 @@ void stream_put(struct context *cnt, unsigned char *image)
         (select(sl + 1, &fdread, NULL, NULL, &timeout) > 0)) {
         sc = http_acceptsock(sl);
         if (cnt->conf.stream_auth_method == 0) {
+            MOTION_LOG(WRN, TYPE_STREAM, 0, "xxx a new client connected: Total is %i", cnt->stream_count);
             stream_add_client(&cnt->stream, sc);
             cnt->stream_count++;
+            MOTION_LOG(WRN, TYPE_STREAM, 0, "xxx b new client connected: Total is %i", cnt->stream_count);
         } else  {
             do_client_auth(cnt, sc);
         }
