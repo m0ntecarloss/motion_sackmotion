@@ -775,13 +775,12 @@ static int motion_init(struct context *cnt)
     memset(cnt->motion_diff_buckets,  0, sizeof(cnt->motion_diff_buckets));
     cnt->motion_diff_bucket_max   = 0;
     cnt->motion_diffs_this_second = 0;
+    if (!cnt->conf.detect_motion)
+        cnt->pause = 1;
     /* CRR END */
 
     MOTION_LOG(NTC, TYPE_ALL, NO_ERRNO, "%s: Thread %d started , motion detection %s", 
                (unsigned long)pthread_getspecific(tls_key_threadnr), cnt->pause ? "Disabled":"Enabled");
-
-    if (!cnt->conf.detect_motion)
-        cnt->pause = 1;
 
     if (!cnt->conf.filepath)
         cnt->conf.filepath = mystrdup(".");
