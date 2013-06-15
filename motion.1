@@ -1,9 +1,9 @@
-.TH MOTION 1 2008-05-05 "Motion" "Motion Options and Config Files"
+.TH MOTION 1 2011-12-12 "Motion" "Motion Options and Config Files"
 .SH NAME
 motion \-   Detect motion using a video4linux device
 .SH SYNOPSIS
 .B motion
-[ -hns ] [ -c config file path ] [ -d log level ] [ -k log type ] [ -p process_id_file ] [ -l logfile ]
+[ -hmns ] [ -c config file path ] [ -d log level ] [ -k log type ] [ -p process_id_file ] [ -l logfile ]
 .SH DESCRIPTION
 .I  Motion
 uses a video4linux device to detect motion. If motion is detected both normal
@@ -17,6 +17,9 @@ Full path and filename of config file. E.g. /home/kurt/motion.conf. Default is /
 .B \-h
 Show help screen.
 .TP
+.B \-m
+Disable motion detection at startup.
+.TP
 .B \-n
 Run in non-daemon mode.
 .TP
@@ -24,10 +27,10 @@ Run in non-daemon mode.
 Run in setup mode. Also forces non-daemon mode
 .TP
 .B \-d log level
-Set log level [1..9] (EMR, ALR, CRT, ERR, WRN, NTC, ERR, DBG, ALL). (default: 6 / NTC)
+Set log level [1..9] (EMR, ALR, CRT, ERR, WRN, NTC, INF, DBG, ALL). (default: 6 / NTC)
 .TP
 .B \-k log type
-Set type of log (STR, ENC, NET, DBL, EVT, TRK, VID, ALL). (default: ALL)
+Set type of log (COR, STR, ENC, NET, DBL, EVT, TRK, VID, ALL). (default: ALL)
 .TP
 .B \-p
 Full path and filename for process id file (pid file). E.g /var/run/motion.pid. Default is not defined. Pid file is only created when Motion is started in daemon mode.
@@ -44,7 +47,13 @@ Boolean options can be on or off (values "1", "yes" and "on" all means true and 
 .B area_detect integer
 Values: 0 - 999999999 / Default: Not defined
 .br
-Detect motion center in predefined areas. A script (on_area_detected) is started immediately when motion center is detected in one of the given areas, but only once during an event even if there is motion in a different configured area.
+Detect motion in predefined areas (1 - 9). Areas are numbered like that:  1 2 3
+.br
+A script (on_area_detected) is started immediately when motion is         4 5 6
+.br
+detected in one of the given areas, but only once during an event.        7 8 9
+.br
+One or more areas can be specified with this option. Take care: This option does NOT restrict detection to these areas! (Default: not defined)
 .TP
 .B auto_brightness boolean
 Values: on, off / Default: off
@@ -161,7 +170,7 @@ Values: 0, 2 - 31 / Default: 0 (disabled)
 Enables and defines variable bitrate for the ffmpeg encoder. ffmpeg_bps is ignored if variable bitrate is enabled. Valid values: 0 (default) = fixed bitrate defined by ffmpeg_bps, or the range 2 - 31 where 2 means best quality and 31 is worst.
 .TP
 .B ffmpeg_video_codec discrete strings
-Values: mpeg1 (ffmpeg-0.4.8 only), mpeg4, msmpeg4, swf , flv , ffv1, mov / Default: mpeg4
+Values: mpeg1 (ffmpeg-0.4.8 only), mpeg4, msmpeg4, swf , flv , ffv1, mov, ogg / Default: mpeg4
 .br
 Codec to be used by ffmpeg for the video compression. Timelapse movies are always made in mpeg1 format independent from this option.
 .TP
@@ -274,6 +283,8 @@ URL to use for a netcam proxy server, if required. The syntax is http://myproxy:
 Values: Max 4095 characters / Default: Not defined
 .br
 Specify an url to a downloadable jpeg file or raw mjpeg stream to use as input device. Such as an AXIS 2100 network camera.
+.br
+http:// ftp:// mjpg:// or file:/// ( mjpg:// is for network cameras with codec mjpeg ).
 .TP
 .B netcam_userpass string
 Values: Max 4095 characters / Default: Not defined

@@ -245,7 +245,7 @@ config_param config_params[] = {
     },
     {
     "log_type",
-    "# Filter to log messages by type (STR, ENC, NET, DBL, EVT, TRK, VID, ALL). (default: ALL)",
+    "# Filter to log messages by type (COR, STR, ENC, NET, DBL, EVT, TRK, VID, ALL). (default: ALL)",
     1,
     CONF_OFFSET(log_type_str),
     copy_string,
@@ -380,7 +380,7 @@ config_param config_params[] = {
     },
     {
     "netcam_url",
-    "# URL to use if you are using a network camera, size will be autodetected (incl http:// ftp:// or file:///)\n"
+    "# URL to use if you are using a network camera, size will be autodetected (incl http:// ftp:// mjpg:// or file:///)\n"
     "# Must be a URL that returns single jpeg pictures or a raw mjpeg stream. Default: Not defined",
     0,
     CONF_OFFSET(netcam_url),
@@ -555,7 +555,8 @@ config_param config_params[] = {
     "# Detect motion in predefined areas (1 - 9). Areas are numbered like that:  1 2 3\n"
     "# A script (on_area_detected) is started immediately when motion is         4 5 6\n"
     "# detected in one of the given areas, but only once during an event.        7 8 9\n"
-    "# One or more areas can be specified with this option. (Default: not defined)",
+    "# One or more areas can be specified with this option. Take care: This option\n"
+    "# does NOT restrict detection to these areas! (Default: not defined)",
     0,
     CONF_OFFSET(area_detect),
     copy_string,
@@ -582,7 +583,9 @@ config_param config_params[] = {
     {
     "lightswitch",
     "# Ignore sudden massive light intensity changes given as a percentage of the picture\n"
-    "# area that changed intensity. Valid range: 0 - 100 , default: 0 = disabled",
+    "# area that changed intensity. If set to 1, motion will do some kind of\n"
+    "# auto-lightswitch. Valid range: 0 - 100 , default: 0 = disabled",
+
     0,
     CONF_OFFSET(lightswitch),
     copy_int,
@@ -620,10 +623,12 @@ config_param config_params[] = {
     },
     {
     "event_gap",
-    "# Event Gap is the seconds of no motion detection that triggers the end of an event\n"
+    "# Event Gap is the seconds of no motion detection that triggers the end of an event.\n"
     "# An event is defined as a series of motion images taken within a short timeframe.\n"
-    "# Recommended value is 60 seconds (Default). The value 0 is allowed and disables\n"
-    "# events causing all Motion to be written to one single movie file and no pre_capture.",
+    "# Recommended value is 60 seconds (Default). The value -1 is allowed and disables\n"
+    "# events causing all Motion to be written to one single movie file and no pre_capture.\n"
+    "# If set to 0, motion is running in gapless mode. Movies don't have gaps anymore. An\n"
+    "# event ends right after no more motion is detected and post_capture is over.",
     0,
     CONF_OFFSET(event_gap),
     copy_int,
@@ -788,7 +793,8 @@ config_param config_params[] = {
     "# swf - gives you a flash film with extension .swf\n"
     "# flv - gives you a flash video with extension .flv\n"
     "# ffv1 - FF video codec 1 for Lossless Encoding ( experimental )\n"
-    "# mov - QuickTime ( testing )",
+    "# mov - QuickTime ( testing )\n"
+    "# ogg - Ogg/Theora ( testing )",
     0,
     CONF_OFFSET(ffmpeg_video_codec),
     copy_string,
@@ -1622,7 +1628,7 @@ static void conf_cmdline(struct context *cnt, int thread)
      * if necessary. This is accomplished by calling mystrcpy();
      * see this function for more information.
      */
-    while ((c = getopt(conf->argc, conf->argv, "c:d:hns?p:k:l:")) != EOF)
+    while ((c = getopt(conf->argc, conf->argv, "c:d:hmns?p:k:l:")) != EOF)
         switch (c) {
         case 'c':
             if (thread == -1)
@@ -1651,6 +1657,9 @@ static void conf_cmdline(struct context *cnt, int thread)
             if (thread == -1)
                 strcpy(cnt->log_file, optarg);
             break;
+        case 'm':
+            cnt->pause = 1;
+            break;    
         case 'h':
         case '?':
         default:
@@ -2433,9 +2442,10 @@ static void usage()
     printf("-s\t\t\tRun in setup mode.\n");
     printf("-c config\t\tFull path and filename of config file.\n");
     printf("-d level\t\tLog level (1-9) (EMR, ALR, CRT, ERR, WRN, NTC, ERR, DBG, ALL). default: 6 / NTC.\n");
-    printf("-k type\t\t\tType of log (STR, ENC, NET, DBL, EVT, TRK, VID, ALL). default: ALL.\n");
+    printf("-k type\t\t\tType of log (COR, STR, ENC, NET, DBL, EVT, TRK, VID, ALL). default: ALL.\n");
     printf("-p process_id_file\tFull path and filename of process id file (pid file).\n");
     printf("-l log file \t\tFull path and filename of log file.\n");
+    printf("-m\t\t\tDisable motion detection at startup.\n");
     printf("-h\t\t\tShow this screen.\n");
     printf("\n");
     printf("Motion is configured using a config file only. If none is supplied,\n");

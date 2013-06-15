@@ -394,8 +394,8 @@ static void motion_remove_pid(void)
     if (ptr_logfile) { 
         MOTION_LOG(NTC, TYPE_ALL, NO_ERRNO, "%s: Closing logfile (%s).",  
                    cnt_list[0]->conf.log_file);
-        set_log_mode(LOGMODE_SYSLOG);
         myfclose(ptr_logfile);
+        set_log_mode(LOGMODE_SYSLOG);
         ptr_logfile = NULL;
     }        
 
@@ -490,7 +490,6 @@ static void motion_detected(struct context *cnt, int dev, struct image_data *img
 
         /* EVENT_MOTION triggers event_beep and on_motion_detected_command */
         event(cnt, EVENT_MOTION, NULL, NULL, NULL, &img->timestamp_tm);
-
     }
 
     /* Limit framerate */
@@ -778,8 +777,8 @@ static int motion_init(struct context *cnt)
     cnt->motion_diffs_this_second = 0;
     /* CRR END */
 
-    MOTION_LOG(NTC, TYPE_ALL, NO_ERRNO, "%s: Thread %d started", 
-               (unsigned long)pthread_getspecific(tls_key_threadnr));
+    MOTION_LOG(NTC, TYPE_ALL, NO_ERRNO, "%s: Thread %d started , motion detection %s", 
+               (unsigned long)pthread_getspecific(tls_key_threadnr), cnt->pause ? "Disabled":"Enabled");
 
     if (!cnt->conf.detect_motion)
         cnt->pause = 1;
@@ -1025,8 +1024,8 @@ static int motion_init(struct context *cnt)
                        cnt->conf.stream_port);
             cnt->finish = 1;
         } else {  
-            MOTION_LOG(NTC, TYPE_ALL, NO_ERRNO, "%s: Started motion-stream server in port %d", 
-                       cnt->conf.stream_port);
+            MOTION_LOG(NTC, TYPE_ALL, NO_ERRNO, "%s: Started motion-stream server in port %d auth %s", 
+                       cnt->conf.stream_port, cnt->conf.stream_auth_method ? "Enabled":"Disabled");
         }    
     }
 
@@ -1273,7 +1272,7 @@ static void *motion_loop(void *arg)
 
     while (!cnt->finish || cnt->makemovie) {
 
-        /***** MOTION LOOP - PREPARE FOR NEW FRAME SECTION *****/
+    /***** MOTION LOOP - PREPARE FOR NEW FRAME SECTION *****/
         cnt->watchdog = WATCHDOG_TMO;
 
         /* Get current time and preserver last time for frame interval calc. */
@@ -1647,7 +1646,7 @@ static void *motion_loop(void *arg)
                      * 5 frames to allow the camera to settle.
                      * Don't check if we have lost connection, we detect "Lost signal" frame as lightswitch
                      */
-                    if (cnt->conf.lightswitch && !cnt->lost_connection) {
+                    if (cnt->conf.lightswitch > 1 && !cnt->lost_connection) {
                         if (alg_lightswitch(cnt, cnt->current_image->diffs)) {
                             MOTION_LOG(INF, TYPE_ALL, NO_ERRNO, "%s: Lightswitch detected"); 
 
@@ -1762,15 +1761,17 @@ static void *motion_loop(void *arg)
 
                 /* 
                  * Update reference frame. 
-                 * micro-lighswitch: e.g. neighbors cat switched on the motion sensitive 
+                 * micro-lighswitch: trying to auto-detect lightswitch events. 
                  * frontdoor illumination. Updates are rate-limited to 3 per second at   
                  * framerates above 5fps to save CPU resources and to keep sensitivity   
                  * at a constant level.                                                  
                  */
 
-                if ((cnt->current_image->diffs > cnt->threshold) && 
-                    (cnt->lightswitch_framecounter < (cnt->lastrate * 2)) && /* two seconds window */
+                if ((cnt->current_image->diffs > cnt->threshold) && (cnt->conf.lightswitch == 1) &&
+                    (cnt->lightswitch_framecounter < (cnt->lastrate * 2)) && /* two seconds window only */
+                    /* number of changed pixels almost the same in two consecutive frames and */
                     ((abs(previous_diffs - cnt->current_image->diffs)) < (previous_diffs / 15)) &&
+                    /* center of motion in about the same place ? */
                     ((abs(cnt->current_image->location.x - previous_location_x)) <= (cnt->imgs.width / 150)) &&
                     ((abs(cnt->current_image->location.y - previous_location_y)) <= (cnt->imgs.height / 150))) {
                     alg_update_reference_frame(cnt, RESET_REF_FRAME);
@@ -1930,19 +1931,15 @@ static void *motion_loop(void *arg)
                 }
 
                 if (frame_count >= cnt->conf.minimum_motion_frames) {
+
                     cnt->current_image->flags |= (IMAGE_TRIGGER | IMAGE_SAVE);
                     cnt->detecting_motion = 1;
                     cnt->lasteventendtime = cnt->currenttime;
-#ifdef HAVE_FFMPEG
-                    if (cnt->ffmpeg_output || (cnt->conf.useextpipe && cnt->extpipe)) {
-#else
-                    if (cnt->conf.useextpipe && cnt->extpipe) {
-#endif
-                        /* Setup the postcap counter */
-                        cnt->postcap = cnt->conf.post_capture;
-                        MOTION_LOG(DBG, TYPE_ALL, NO_ERRNO, "%s: Setup post capture %d", 
-                                   cnt->postcap);
-                    }
+                    /* Setup the postcap counter */
+                    cnt->postcap = cnt->conf.post_capture;
+                    MOTION_LOG(DBG, TYPE_ALL, NO_ERRNO, "%s: Setup post capture %d", 
+                               cnt->postcap);
+
                     /* Mark all images in image_ring to be saved */
                     for (i = 0; i < cnt->imgs.image_ring_size; i++) 
                         cnt->imgs.image_ring[i].flags |= IMAGE_SAVE;
@@ -1973,6 +1970,8 @@ static void *motion_loop(void *arg)
                 /* No motion, doing postcap */
                 cnt->current_image->flags |= (IMAGE_POSTCAP | IMAGE_SAVE);
                 cnt->postcap--;
+                MOTION_LOG(DBG, TYPE_ALL, NO_ERRNO, "%s: post capture %d", 
+                           cnt->postcap);
             } else {
                 /* Done with postcap, so just have the image in the precap buffer */
                 cnt->current_image->flags |= IMAGE_PRECAP;
@@ -2048,7 +2047,8 @@ static void *motion_loop(void *arg)
                     if (cnt->track.type)
                         cnt->moved = track_center(cnt, cnt->video_dev, 0, 0, 0);
 
-                    MOTION_LOG(DBG, TYPE_ALL, NO_ERRNO, "%s: End of event %d", cnt->event_nr);
+                    MOTION_LOG(NTC, TYPE_ALL, NO_ERRNO, "%s: End of event %d", 
+                               cnt->event_nr);
 
                     cnt->makemovie = 0;
                     /* Reset post capture */
@@ -2604,7 +2604,7 @@ static void motion_startup(int daemonize, int argc, char *argv[])
         cnt_list[0]->log_level = cnt_list[0]->conf.log_level - 1; // Let's make syslog compatible
     }
 
-    set_log_level(cnt_list[0]->log_level);   
+    //set_log_level(cnt_list[0]->log_level);   
 
 #ifdef HAVE_SDL
      MOTION_LOG(NTC, TYPE_ALL, NO_ERRNO, "%s: Motion "VERSION" Started with SDL support");
@@ -2641,6 +2641,7 @@ static void motion_startup(int daemonize, int argc, char *argv[])
     MOTION_LOG(NTC, TYPE_ALL, NO_ERRNO, "%s: Using log type (%s) log level (%s)", 
                get_log_type_str(cnt_list[0]->log_type), get_log_level_str(cnt_list[0]->log_level));
 
+    set_log_level(cnt_list[0]->log_level);
     set_log_type(cnt_list[0]->log_type);
 
     initialize_chars();
@@ -2906,7 +2907,7 @@ int main (int argc, char **argv)
 
             if (((motion_threads_running == 0) && finish) || 
                 ((motion_threads_running == 0) && (threads_running == 0))) {
-                MOTION_LOG(DBG, TYPE_ALL, NO_ERRNO, "%s: DEBUG-1 threads_running %d motion_threads_running %d "
+                MOTION_LOG(ALL, TYPE_ALL, NO_ERRNO, "%s: DEBUG-1 threads_running %d motion_threads_running %d "
                            ", finish %d", threads_running, motion_threads_running, finish);                 
                 break;
             }    
@@ -2942,7 +2943,7 @@ int main (int argc, char **argv)
                 }
             }
 
-            MOTION_LOG(DBG, TYPE_ALL, NO_ERRNO, "%s: DEBUG-2 threads_running %d motion_threads_running %d finish %d", 
+            MOTION_LOG(ALL, TYPE_ALL, NO_ERRNO, "%s: DEBUG-2 threads_running %d motion_threads_running %d finish %d", 
                        threads_running, motion_threads_running, finish);
         }
         /* Reset end main loop flag */
@@ -2996,7 +2997,7 @@ int main (int argc, char **argv)
  */
 void * mymalloc(size_t nbytes)
 {
-    void *dummy = malloc(nbytes);
+    void *dummy = calloc(nbytes, 1);
  
     if (!dummy) {
         MOTION_LOG(EMG, TYPE_ALL, SHOW_ERRNO, "%s: Could not allocate %llu bytes of memory!", 
@@ -3220,16 +3221,20 @@ int myfclose(FILE* fh)
 {
     int i = 0;
     int rval = fclose(fh);
+
+    if (rval != 0) 
+        MOTION_LOG(ERR, TYPE_ALL, SHOW_ERRNO, "%s: Error closing file");
+
     for (i = 0; i < MYBUFCOUNT; i++) {
         if (buffers[i].fh == fh) {
             buffers[i].fh = NULL;
-#if 0 /* Don't free the buffers for now, reuse them instead */
-            if (buffers[i].buffer)
-                free(buffers[i].buffer);
+            if ( finish ) {
+                /* Free the buffers */
+                if (buffers[i].buffer)
+                    free(buffers[i].buffer);
                 buffers[i].buffer = NULL;
                 buffers[i].bufsize = 0;
-#endif
-            break;
+            }
         }
     }
     return rval;
