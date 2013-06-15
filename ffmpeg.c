@@ -853,7 +853,7 @@ int ffmpeg_put_other_image(struct ffmpeg *ffmpeg, unsigned char *y,
  */
 int ffmpeg_put_frame(struct ffmpeg *ffmpeg, AVFrame *pic)
 {
-    int out_size, ret, got_packet_ptr;
+    int out_size, ret;
 
 #ifdef FFMPEG_AVWRITEFRAME_NEWAPI
     AVPacket pkt;
@@ -880,13 +880,15 @@ int ffmpeg_put_frame(struct ffmpeg *ffmpeg, AVFrame *pic)
     } else {
         /* Encodes the image. */
 #if defined FF_API_NEW_AVIO
+        int got_packet_ptr;
+
         pkt.data = ffmpeg->video_outbuf;
         pkt.size = ffmpeg->video_outbuf_size;
 
         out_size = avcodec_encode_video2(AVSTREAM_CODEC_PTR(ffmpeg->video_st), 
                                         &pkt, pic, &got_packet_ptr);
         if (out_size < 0)
-            // Error encondig 
+            // Error encoding 
             out_size = 0;
         else
             out_size = pkt.size;
