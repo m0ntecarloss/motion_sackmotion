@@ -3315,6 +3315,13 @@ size_t mystrftime(const struct context *cnt, char *s, size_t max, const char *us
                     ++pos_userformat;
                 break;
 
+            case 'E': // thread name
+                if (cnt->conf.thread_name && cnt->conf.thread_name[0])
+                    snprintf(tempstr, PATH_MAX, "%s", cnt->conf.thread_name);
+                else
+                    ++pos_userformat;
+                break;
+
             default: // Any other code is copied with the %-sign
                 *format++ = '%';
                 *format++ = *pos_userformat;
