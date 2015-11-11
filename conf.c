@@ -214,6 +214,14 @@ config_param config_params[] = {
     print_bool
     },
     {
+    "thread_name",
+    "# name given to thread.  may be used with the specifier %E for filenames and such.n",
+    0,
+    CONF_OFFSET(thread_name),
+    copy_string,
+    print_string
+    },
+    {
     "logfile",
     "# Use a file to save logs messages, if not defined stderr and syslog is used. (default: not defined)",
     1,
